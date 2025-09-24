@@ -1,0 +1,57 @@
+const bcrypt = require('bcrypt');
+const UserRepository = require('../repository/UserRepository');
+const jwt = require('jsonwebtoken');
+
+class UserService
+{
+    async register(userData)
+    {
+        const { name, email, password } = userData;
+
+        const existingUser = await UserRepository.findByEmail(userData.email);
+        if (existingUser) {
+            throw new Error('Email đã được sử dụng');
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        return await UserRepository.register({
+            name,
+            email,
+            password: hashedPassword
+        });
+    }
+
+    async login(email, password)
+    {
+        const user = await UserRepository.findByEmail(email);
+        if (!user) {
+            return {
+                message: 'Email không tồn tại',
+            }
+        }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return {
+                message: 'Mật khẩu không đúng',
+            }
+        }
+        // Tạo token
+        const token = jwt.sign(
+            { id: user.id, email: user.email }, // payload
+            process.env.JWT_SECRET,             // secret key
+            { expiresIn: process.env.JWT_EXPIRES || '7d' } // thời hạn
+        );
+
+        return {
+            message: "Đăng nhập thành công",
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email
+            }
+            , token
+        };
+    }
+}
+
+module.exports = new UserService();
