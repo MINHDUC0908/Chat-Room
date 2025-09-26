@@ -21,7 +21,7 @@ sequelize.sync({ force: false }) // force: false để tránh mất dữ liệu
 
 syncDatabase(); // Chạy hàm đồng bộ database nếu cần
 
-server.listen(3000, () => {
+server.listen(3000, "0.0.0.0", () => {
     console.log(`Server is running on port ${3000}`);
 });
 
@@ -29,22 +29,26 @@ const routes = require("./routes");
 routes(app); // Sử dụng routes
 
 // Khởi tạo socket
-// const io = new Server(server, {
-//     cors: { origin: "http://localhost:5173" } // cho phép React kết nối
-// });
+// Cho phép CORS để các client khác máy kết nối
+const io = new Server(server, {
+    cors: {
+        origin: "*", // Cho phép tất cả, hoặc cụ thể: ["http://192.168.1.101:5173", "http://192.168.1.102:5173"]
+        methods: ["GET", "POST"]
+    }
+});
 
-// io.on("connection", (socket) => {
-//     console.log("🔌 User connected:", socket.id);
+io.on("connection", (socket) => {
+    console.log("🔌 User connected:", socket.id);
 
-//     // Nhận tin nhắn từ client
-//     socket.on("chatMessage", (msg) => {
-//         console.log("📩 Message:", msg);
+    // Nhận tin nhắn từ client
+    socket.on("chatMessage", (msg) => {
+        console.log("📩 Message:", msg);
 
-//         // Gửi lại cho tất cả client
-//         io.emit("chatMessage", msg);
-//     });
+        // Gửi lại cho tất cả client
+        io.emit("chatMessage", msg);
+    });
 
-//     socket.on("disconnect", () => {
-//         console.log("❌ User disconnected:", socket.id);
-//     });
-// });
+    socket.on("disconnect", () => {
+        console.log("❌ User disconnected:", socket.id);
+    });
+});

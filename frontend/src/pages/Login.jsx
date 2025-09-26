@@ -2,18 +2,17 @@ import { LockClosedIcon } from "@heroicons/react/20/solid";
 import { useEffect } from "react";
 import axios from "axios";
 import { useState } from "react";
+import useAuth from "../hooks/useAuth";
 
 function Login({ setCurrentTitle }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const { login } = useAuth();
+    
     useEffect(() => {
         setCurrentTitle("Đăng nhập");
     }, [setCurrentTitle]);
 
-    const login = async (email, password) => {
-        const res = await axios.post("http://localhost:3000/auth/login", { email, password });
-        console.log(res.data);
-    }
     return (
         <div className="flex min-h-screen items-center justify-center bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-4">
             <div className="w-full max-w-md rounded-2xl bg-white/80 p-8 shadow-2xl backdrop-blur-md">
