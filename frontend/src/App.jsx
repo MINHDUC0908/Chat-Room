@@ -7,6 +7,7 @@ import DefaultLayout from "./layouts/DefaultLayout";
 import ChatRoom from "./pages/ChatRoom";
 import ProtectedRoute from "./utils/ProtectedRoute";
 import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "./contexts/AuthContext";
 
 function App()
 {
@@ -16,26 +17,28 @@ function App()
     }, [currentTitle]);
     return (
         <>
-            <Routes>
-                <Route path="/login" element={<Login setCurrentTitle={setCurrentTitle} />} />
-                <Route
-                    path="/"
-                    element={
-                        <ProtectedRoute>
-                            <DefaultLayout />
-                        </ProtectedRoute>
-                    }
-                >
+            <AuthProvider>
+                <Routes>
+                    <Route path="/login" element={<Login setCurrentTitle={setCurrentTitle} />} />
                     <Route
-                        path="chat-room"
+                        path="/"
                         element={
                             <ProtectedRoute>
-                                <ChatRoom />
+                                <DefaultLayout />
                             </ProtectedRoute>
                         }
-                    />
-                </Route>
-            </Routes>
+                    >
+                        <Route
+                            path="chat-room/:id"
+                            element={
+                                <ProtectedRoute>
+                                    <ChatRoom setCurrentTitle={setCurrentTitle} />
+                                </ProtectedRoute>
+                            }
+                        />
+                    </Route>
+                </Routes>
+            </AuthProvider>
             <Toaster position="top-right" reverseOrder={false} />
         </>
     )

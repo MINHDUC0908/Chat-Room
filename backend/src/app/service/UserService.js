@@ -37,7 +37,7 @@ class UserService
         }
         // Tạo token
         const token = jwt.sign(
-            { id: user.id, email: user.email }, // payload
+            { id: user.id, email: user.email, name: user.name }, // payload
             process.env.JWT_SECRET,             // secret key
             { expiresIn: process.env.JWT_EXPIRES || '7d' } // thời hạn
         );

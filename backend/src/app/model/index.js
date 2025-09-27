@@ -1,4 +1,5 @@
 const sequelize = require("../../config/db");
+const Message = require("./Message");
 const User = require("./User");
 
 const syncDatabase = async () => {
@@ -13,4 +14,4 @@ const syncDatabase = async () => {
     }
 };
 
-module.exports = { syncDatabase, User };
+module.exports = { syncDatabase, User, Message };

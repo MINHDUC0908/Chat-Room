@@ -1,39 +1,112 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FiEdit2, FiSearch } from "react-icons/fi";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import api from "../api/api";
+import { io } from "socket.io-client";
+
+const socket = io("http://192.168.1.77:3000"); // backend socket
 
 function SideBar() {
-    const [conversations] = useState([
-        {
-            id: 1,
-            name: "phomaiconbocuoi.hehe",
-            lastActive: "Hoạt động 1 giờ trước",
-            avatar: "https://i.pravatar.cc/50?img=11"
-        },
-        {
-            id: 2,
-            name: "Hiền Linh",
-            lastActive: "Hoạt động 1 giờ trước",
-            avatar: "https://i.pravatar.cc/50?img=12"
-        }
-    ]);
+    const { user } = useAuth();
+    const navigate = useNavigate(); 
 
+    const [users, setUsers] = useState([]);
+    const [conversations, setConversations] = useState([]);
     const [search, setSearch] = useState("");
-    const [filteredConversations, setFilteredConversations] = useState(conversations);
 
-    const handleSearch = (e) => {
-        const value = e.target.value;
-        setSearch(value);
+    const fetchUsers = async () => {
+        try {
+            const res = await axios.get(api + "auth/users", {
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+            });
+            if (res.data) {
+                setUsers(res.data);
+                console.log("✅ Fetch users thành công:", res.data);
+            }
+        } catch (error) {
+            console.error("❌ Lỗi khi fetch users:", error);
+        }
+    }
 
-        if (value.trim() === "") {
-            setFilteredConversations(conversations);
-        } else {
-            const filtered = conversations.filter(conv =>
-                conv.name.toLowerCase().includes(value.toLowerCase())
-            );
-            setFilteredConversations(filtered);
+    const fetchConversations = async () => {
+        try {
+            const res = await axios.get(api + "chat/conversations", {
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+            });
+            if (res.data) {
+                // map thêm avatar vào cho đồng nhất
+                const mapped = res.data.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    email: c.email,
+                    avatar: `https://i.pravatar.cc/50?u=${c.id}`,
+                    lastMessage: c.lastMessage,
+                    lastTime: c.lastTime
+                }));
+                setConversations(mapped);
+                console.log("✅ Fetch conversations thành công:", mapped);
+            }
+        } catch (error) {
+            console.error("❌ Lỗi khi fetch conversations:", error);
         }
     };
+
+    useEffect(() => {
+    fetchUsers();
+    fetchConversations(); // 👈 gọi thêm
+
+    if (user?.id) {
+        socket.emit("join", user.id);
+    }
+
+    socket.on("private_message", (msg) => {
+        console.log("📩 Nhận tin nhắn:", msg);
+
+        const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+
+        setConversations((prev) => {
+            const exists = prev.find((c) => c.id === otherUserId);
+            if (exists) {
+                const updated = prev.filter((c) => c.id !== otherUserId);
+                return [
+                    {
+                        ...exists,
+                        lastMessage: msg.content,
+                        lastTime: new Date().toLocaleTimeString()
+                    },
+                    ...updated
+                ];
+            } else {
+                const u = users.find((u) => u.id === otherUserId);
+                if (!u) return prev;
+
+                return [
+                    {
+                        id: u.id,
+                        name: u.name,
+                        email: u.email,
+                        avatar: `https://i.pravatar.cc/50?u=${u.id}`,
+                        lastMessage: msg.content,
+                        lastTime: new Date().toLocaleTimeString()
+                    },
+                    ...prev
+                ];
+            }
+        });
+    });
+
+    return () => {
+        socket.off("private_message");
+    };
+}, [user]);
+
+
+    // lọc tìm kiếm
+    const filteredConversations = conversations.filter(conv =>
+        conv.name.toLowerCase().includes(search.toLowerCase())
+    );
 
     return (
         <div style={{
@@ -53,7 +126,7 @@ function SideBar() {
                 fontWeight: "bold",
                 fontSize: "18px"
             }}>
-                <span>minhduc9805</span>
+                <span>{user?.name}</span>
                 <FiEdit2 style={{ cursor: "pointer" }} />
             </div>
 
@@ -71,7 +144,7 @@ function SideBar() {
                         type="text"
                         placeholder="Tìm kiếm"
                         value={search}
-                        onChange={handleSearch}
+                        onChange={(e) => setSearch(e.target.value)}
                         style={{
                             border: "none",
                             outline: "none",
@@ -82,70 +155,37 @@ function SideBar() {
                 </div>
             </div>
 
-            {/* Ghi chú */}
-            <div style={{ padding: "10px 15px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <img
-                        src="https://i.pravatar.cc/50?img=1"
-                        alt="note"
-                        style={{ width: "50px", height: "50px", borderRadius: "50%" }}
-                    />
-                    <span style={{ fontSize: "14px", color: "#555" }}>Ghi chú của bạn</span>
-                </div>
-            </div>
-
-            <hr />
-
-            {/* Tabs */}
-            <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "0 15px",
-                fontSize: "14px",
-                fontWeight: "bold"
-            }}>
-                <span>Tin nhắn</span>
-                <span style={{ color: "#888" }}>Tin nhắn đang chờ</span>
-            </div>
-
             {/* Danh sách chat */}
-            <div style={{ flex: 1, overflowY: "auto" }}>
-                {filteredConversations.map(conv => (
+            <div style={{ padding: "10px 15px", borderTop: "1px solid #ddd" }}>
+                <div style={{ fontWeight: "bold", marginBottom: "10px" }}>Tin nhắn</div>
+                {filteredConversations.map(c => (
                     <div
-                        key={conv.id}
-                        onClick={() => console.log(`Navigate to chat ${conv.id}`)}
+                        key={c.id}
+                        onClick={() => navigate(`/chat-room/${c.id}`)}
                         style={{
-                            display: "flex",
+                            display: "flex",        
                             alignItems: "center",
                             gap: "10px",
-                            padding: "10px 15px",
-                            textDecoration: "none",
-                            color: "#000",
+                            padding: "8px 0",
                             cursor: "pointer"
                         }}
                     >
-                        <img
-                            src={conv.avatar}
-                            alt={conv.name}
-                            style={{ width: "50px", height: "50px", borderRadius: "50%" }}
-                        />
+                        <img    
+                            src={c.avatar}
+                            alt={c.name}
+                            style={{ width: "40px", height: "40px", borderRadius: "50%" }}
+                        />  
                         <div>
-                            <div style={{ fontWeight: "500" }}>{conv.name}</div>
-                            <div style={{ fontSize: "12px", color: "#666" }}>{conv.lastActive}</div>
+                            <div style={{ fontWeight: "500" }}>{c.name}</div>
+                            <div style={{ fontSize: "12px", color: "#666" }}>
+                                {c.lastMessage || c.email}
+                            </div>
+                        </div>
+                        <div style={{ marginLeft: "auto", fontSize: "11px", color: "#888" }}>
+                            {c.lastTime}
                         </div>
                     </div>
                 ))}
-                
-                {filteredConversations.length === 0 && (
-                    <div style={{
-                        padding: "20px 15px",
-                        textAlign: "center",
-                        color: "#888",
-                        fontSize: "14px"
-                    }}>
-                        Không tìm thấy cuộc trò chuyện nào
-                    </div>
-                )}
             </div>
         </div>
     );

@@ -1,13 +1,13 @@
 import { LockClosedIcon } from "@heroicons/react/20/solid";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast"; // hoặc react-toastify
-import useAuth from "../hooks/useAuth";
+import { useAuth } from "../contexts/AuthContext";
 
 function Login({ setCurrentTitle }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const { login } = useAuth();
+    const { login } = useAuth(); 
     
     useEffect(() => {
         setCurrentTitle("Đăng nhập");

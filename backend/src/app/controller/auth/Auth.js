@@ -1,3 +1,4 @@
+const { User } = require('../../model');
 const UserService = require('../../service/UserService');
 
 class Auth
@@ -30,6 +31,19 @@ class Auth
             res.status(200).json(result);
         } catch (error) {
             res.status(400).json({ message: error.message });
+        }
+    }
+
+
+    async users(req, res)
+    {
+        try {
+            const users = await User.findAll({
+                attributes: { exclude: ['password'] } // không trả về password
+            });
+            res.status(200).json(users);
+        } catch (error) {
+            res.status(500).json({ message: "Lỗi server" });
         }
     }
 }
