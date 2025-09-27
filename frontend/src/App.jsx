@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useEffect } from "react";
 import DefaultLayout from "./layouts/DefaultLayout";
 import ChatRoom from "./pages/ChatRoom";
+import ProtectedRoute from "./utils/ProtectedRoute";
+import { Toaster } from "react-hot-toast";
 
 function App()
 {
@@ -13,12 +15,29 @@ function App()
         document.title = currentTitle;
     }, [currentTitle]);
     return (
-        <Routes>
-            <Route path="/login" element={<Login setCurrentTitle={setCurrentTitle}  />}/>
-            <Route path="/" element={<DefaultLayout />}>
-                <Route path="/chat-room" element={<ChatRoom/>} />
-            </Route>
-        </Routes>
+        <>
+            <Routes>
+                <Route path="/login" element={<Login setCurrentTitle={setCurrentTitle} />} />
+                <Route
+                    path="/"
+                    element={
+                        <ProtectedRoute>
+                            <DefaultLayout />
+                        </ProtectedRoute>
+                    }
+                >
+                    <Route
+                        path="chat-room"
+                        element={
+                            <ProtectedRoute>
+                                <ChatRoom />
+                            </ProtectedRoute>
+                        }
+                    />
+                </Route>
+            </Routes>
+            <Toaster position="top-right" reverseOrder={false} />
+        </>
     )
 }
 

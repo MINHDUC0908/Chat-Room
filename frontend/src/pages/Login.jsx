@@ -1,17 +1,37 @@
 import { LockClosedIcon } from "@heroicons/react/20/solid";
-import { useEffect } from "react";
-import axios from "axios";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast"; // hoặc react-toastify
 import useAuth from "../hooks/useAuth";
 
 function Login({ setCurrentTitle }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
     
     useEffect(() => {
         setCurrentTitle("Đăng nhập");
     }, [setCurrentTitle]);
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        
+        // Validate input
+        if (!email.trim() || !password.trim()) {
+            toast.error("Vui lòng nhập đầy đủ email và mật khẩu!");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            await login(email, password);
+            toast.success("🎉 Đăng nhập thành công!");
+        } catch (err) {
+            toast.error(err.message || "❌ Đăng nhập thất bại!");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-4">
@@ -38,7 +58,7 @@ function Login({ setCurrentTitle }) {
                 </div>
 
                 {/* Form */}
-                <form className="mt-8 space-y-6">
+                <form onSubmit={handleLogin} className="mt-8 space-y-6">
                     <div className="space-y-4">
                         {/* Email */}
                         <div>
@@ -52,8 +72,9 @@ function Login({ setCurrentTitle }) {
                                 autoComplete="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
+                                disabled={isLoading}
                                 required
-                                className="block w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-500 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 sm:text-sm"
+                                className="block w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-500 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 placeholder="Nhập email của bạn"
                             />
                         </div>
@@ -69,8 +90,9 @@ function Login({ setCurrentTitle }) {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 autoComplete="current-password"
+                                disabled={isLoading}
                                 required
-                                className="block w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-500 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 sm:text-sm"
+                                className="block w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-500 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 placeholder="Nhập mật khẩu"
                             />
                         </div>
@@ -83,7 +105,8 @@ function Login({ setCurrentTitle }) {
                                 id="remember-me"
                                 name="remember-me"
                                 type="checkbox"
-                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                disabled={isLoading}
+                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                             />
                             <label
                                 htmlFor="remember-me"
@@ -106,12 +129,9 @@ function Login({ setCurrentTitle }) {
                     {/* Button login */}
                     <div>
                         <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                login(email, password);
-                            }}
                             type="submit"
-                            className="group relative flex w-full items-center justify-center rounded-lg bg-indigo-600 py-3 px-4 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            disabled={isLoading}
+                            className="group relative flex w-full items-center justify-center rounded-lg bg-indigo-600 py-3 px-4 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                                 <LockClosedIcon
@@ -119,7 +139,7 @@ function Login({ setCurrentTitle }) {
                                     aria-hidden="true"
                                 />
                             </span>
-                            Đăng nhập
+                            {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
                         </button>
                     </div>
                 </form>

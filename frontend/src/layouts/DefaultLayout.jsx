@@ -3,19 +3,14 @@ import SideBar from "./Sidebar";
 
 function DefaultLayout() {
     return (
-        <div style={{ display: "flex", height: "100vh" }}>
-            {/* Sidebar bên trái */}
-            <div style={{
-                width: "250px",
-                borderRight: "1px solid #ddd",
-                padding: "20px",
-                boxSizing: "border-box"
-            }}>
+        <div className="flex h-screen">
+            {/* Sidebar chiếm 1/6 */}
+            <div className="w-26">
                 <SideBar />
             </div>
 
-            {/* Nội dung bên phải */}
-            <div style={{ flex: 1, padding: "20px" }}>
+            {/* Nội dung chiếm 5/6 */}
+            <div className="w-4/6 p-6 bg-white">
                 <Outlet />
             </div>
         </div>

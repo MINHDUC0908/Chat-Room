@@ -29,7 +29,6 @@ const routes = require("./routes");
 routes(app); // Sử dụng routes
 
 // Khởi tạo socket
-// Cho phép CORS để các client khác máy kết nối
 const io = new Server(server, {
     cors: {
         origin: "*", // Cho phép tất cả, hoặc cụ thể: ["http://192.168.1.101:5173", "http://192.168.1.102:5173"]
