@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
 import { FiEdit2, FiSearch } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import api from "../api/api";
 import { io } from "socket.io-client";
+import { formatTime } from "../utils/format";
+import ChatItem from "../components/ChatList";
 
 const socket = io("http://192.168.1.77:3000"); // backend socket
 
 function SideBar() {
     const { user } = useAuth();
     const navigate = useNavigate(); 
-
+    const { id: currentChatId } = useParams();
+    console.log("🟢 currentChatId:", currentChatId);
+    
     const [users, setUsers] = useState([]);
     const [conversations, setConversations] = useState([]);
     const [search, setSearch] = useState("");
@@ -54,54 +58,53 @@ function SideBar() {
     };
 
     useEffect(() => {
-    fetchUsers();
-    fetchConversations(); // 👈 gọi thêm
+        fetchUsers();
+        fetchConversations(); // 👈 gọi thêm
 
-    if (user?.id) {
-        socket.emit("join", user.id);
-    }
+        if (user?.id) {
+            socket.emit("join", user.id);
+        }
 
-    socket.on("private_message", (msg) => {
-        console.log("📩 Nhận tin nhắn:", msg);
+        socket.on("private_message", (msg) => {
+            console.log("📩 Nhận tin nhắn:", msg);
 
-        const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+            const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
 
-        setConversations((prev) => {
-            const exists = prev.find((c) => c.id === otherUserId);
-            if (exists) {
-                const updated = prev.filter((c) => c.id !== otherUserId);
-                return [
-                    {
-                        ...exists,
-                        lastMessage: msg.content,
-                        lastTime: new Date().toLocaleTimeString()
-                    },
-                    ...updated
-                ];
-            } else {
-                const u = users.find((u) => u.id === otherUserId);
-                if (!u) return prev;
+            setConversations((prev) => {
+                const exists = prev.find((c) => c.id === otherUserId);
+                if (exists) {
+                    const updated = prev.filter((c) => c.id !== otherUserId);
+                    return [
+                        {
+                            ...exists,
+                            lastMessage: msg.content,
+                            lastTime: new Date().toISOString()
+                        },
+                        ...updated
+                    ];
+                } else {
+                    const u = users.find((u) => u.id === otherUserId);
+                    if (!u) return prev;
 
-                return [
-                    {
-                        id: u.id,
-                        name: u.name,
-                        email: u.email,
-                        avatar: `https://i.pravatar.cc/50?u=${u.id}`,
-                        lastMessage: msg.content,
-                        lastTime: new Date().toLocaleTimeString()
-                    },
-                    ...prev
-                ];
-            }
+                    return [
+                        {
+                            id: u.id,
+                            name: u.name,
+                            email: u.email,
+                            avatar: `https://i.pravatar.cc/50?u=${u.id}`,
+                            lastMessage: msg.content,
+                            lastTime: new Date().toISOString()
+                        },
+                        ...prev
+                    ];
+                }
+            });
         });
-    });
 
-    return () => {
-        socket.off("private_message");
-    };
-}, [user]);
-
+        return () => {
+            socket.off("private_message");
+        };
+    }, [user]);
 
     // lọc tìm kiếm
     const filteredConversations = conversations.filter(conv =>
@@ -137,7 +140,7 @@ function SideBar() {
                     alignItems: "center",
                     background: "#f1f1f1",
                     borderRadius: "8px",
-                    padding: "5px 10px"
+                    padding: "0px 10px"
                 }}>
                     <FiSearch style={{ marginRight: "8px", color: "#888" }} />
                     <input
@@ -156,35 +159,16 @@ function SideBar() {
             </div>
 
             {/* Danh sách chat */}
-            <div style={{ padding: "10px 15px", borderTop: "1px solid #ddd" }}>
-                <div style={{ fontWeight: "bold", marginBottom: "10px" }}>Tin nhắn</div>
+            <div style={{ padding: "10px 0px", borderTop: "1px solid #ddd" }}>
+                <div className="font-bold mb-[10px] px-[15px]">Tin nhắn</div>
                 {filteredConversations.map(c => (
-                    <div
+                    <ChatItem
                         key={c.id}
+                        conversation={c}
+                        formatTime={formatTime}
+                        isSelected={c.id == currentChatId} // so sánh với id trên URL
                         onClick={() => navigate(`/chat-room/${c.id}`)}
-                        style={{
-                            display: "flex",        
-                            alignItems: "center",
-                            gap: "10px",
-                            padding: "8px 0",
-                            cursor: "pointer"
-                        }}
-                    >
-                        <img    
-                            src={c.avatar}
-                            alt={c.name}
-                            style={{ width: "40px", height: "40px", borderRadius: "50%" }}
-                        />  
-                        <div>
-                            <div style={{ fontWeight: "500" }}>{c.name}</div>
-                            <div style={{ fontSize: "12px", color: "#666" }}>
-                                {c.lastMessage || c.email}
-                            </div>
-                        </div>
-                        <div style={{ marginLeft: "auto", fontSize: "11px", color: "#888" }}>
-                            {c.lastTime}
-                        </div>
-                    </div>
+                    />
                 ))}
             </div>
         </div>

@@ -52,6 +52,27 @@ class UserService
             , token
         };
     }
+
+
+    async getUser(id)
+    {
+        try {
+            const user = await UserRepository.findById(id);
+            if (user)
+            {
+                return {
+                    data: {
+                        id: user.id,
+                        name: user.name,
+                        email: user.email
+                    }
+                }
+            }
+            return { message: "User not found" };
+        } catch (error) {
+            throw new Error("Lỗi khi lấy thông tin user");
+        }
+    }
 }
 
 module.exports = new UserService();

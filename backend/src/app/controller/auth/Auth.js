@@ -46,6 +46,22 @@ class Auth
             res.status(500).json({ message: "Lỗi server" });
         }
     }
+
+
+    async getUser(req, res)
+    {
+        try {
+            const id = req.params.id;
+            const result = await UserService.getUser(id);
+            if (result.data) {
+                res.status(200).json(result.data);
+            } else {
+                res.status(404).json({ message: result.message });
+            }
+        } catch (error) {
+            res.status(500).json({ message: "Lỗi server", error: error.message });
+        }
+    }
 }
 
 module.exports = new Auth();

@@ -2,6 +2,7 @@
 const sequelize = require("../../config/db");
 const { Message } = require("../model");
 const { QueryTypes } = require("sequelize");
+const { Op } = require("sequelize");
 
 class ChatService {
     static async saveMessage(senderId, receiverId, content) {
@@ -43,6 +44,21 @@ class ChatService {
             {
                 replacements: [userId, userId, userId],
                 type: sequelize.QueryTypes.SELECT
+            }
+        );
+        return rows;
+    }
+
+    static async getAllMessages(userId, receiverId) 
+    {
+        const rows = await sequelize.query (
+            `SELECT * FROM messages
+            WHERE (sender_id = ? AND receiver_id = ?)
+                OR (sender_id = ? AND receiver_id = ?)
+            ORDER BY created_at ASC`,
+            {
+                replacements: [userId, receiverId, receiverId, userId],
+                type: QueryTypes.SELECT
             }
         );
         return rows;

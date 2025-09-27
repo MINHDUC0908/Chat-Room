@@ -12,6 +12,20 @@ class ChatController
             res.status(500).json({ message: "Lỗi server" });
         }
     }
+
+
+    async getMessages(req, res) 
+    {
+        try {
+            const userId = req.user.id;
+            const receiverId = req.params.receiverId;
+            const messages = await ChatService.getMessages(userId, receiverId);
+            res.json(messages);
+        } catch (error) {
+            res.status(500).json({ message: "Lỗi server", error: error.message });
+
+        }
+    }
 }
 
 module.exports = new ChatController();
