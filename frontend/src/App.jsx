@@ -8,6 +8,7 @@ import ChatRoom from "./pages/ChatRoom";
 import ProtectedRoute from "./utils/ProtectedRoute";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./contexts/AuthContext";
+import GroupRoom from "./pages/GroupRoom";
 
 function App()
 {
@@ -33,6 +34,14 @@ function App()
                             element={
                                 <ProtectedRoute>
                                     <ChatRoom setCurrentTitle={setCurrentTitle} />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="group-room/:id"
+                            element={
+                                <ProtectedRoute>
+                                    <GroupRoom setCurrentTitle={setCurrentTitle} />
                                 </ProtectedRoute>
                             }
                         />

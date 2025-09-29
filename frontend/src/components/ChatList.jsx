@@ -10,15 +10,26 @@ function ChatItem({ conversation, isSelected, onClick, formatTime }) {
         >
             <img
                 src={conversation.avatar}
-                alt={conversation.name}
+                alt={conversation.displayName || "Nhóm hoặc người dùng"}
                 className="w-10 h-10 rounded-full"
             />
-            <div>
-                <div className="font-medium">{conversation.name}</div>
-                <div className="text-xs text-gray-500">
-                    {conversation.lastMessage || conversation.email}
+
+            <div className="flex-1">
+                <div className="font-medium">{conversation.displayName}</div>
+
+                <div
+                    className={`text-xs ${
+                        conversation.unreadCount > 0
+                            ? "text-red-500 font-semibold"
+                            : "text-black"  // khi đã đọc thì màu đen
+                    }`}
+                >
+                    {
+                        conversation.displayMessage === null ? "Đã gửi 1 ảnh" : conversation.displayMessage
+                    }
                 </div>
             </div>
+
             <div className="ml-auto text-[11px] text-gray-400">
                 {formatTime(conversation.lastTime)}
             </div>

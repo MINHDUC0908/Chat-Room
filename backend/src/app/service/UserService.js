@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
 const UserRepository = require('../repository/UserRepository');
 const jwt = require('jsonwebtoken');
+const { User } = require('../model');
+const { Op } = require('sequelize');
 
 class UserService
 {
@@ -71,6 +73,22 @@ class UserService
             return { message: "User not found" };
         } catch (error) {
             throw new Error("Lỗi khi lấy thông tin user");
+        }
+    }
+
+    async getAllUsers(userId)
+    {
+        try {
+            const users = await User.findAll({
+                attributes: { exclude: ['password'] },
+                where: {
+                    id: { [Op.ne]: userId } // loại bỏ user hiện tại
+                }
+            });
+
+            return users;
+        } catch (error) {
+            throw new Error("Lỗi khi lấy danh sách user");
         }
     }
 }

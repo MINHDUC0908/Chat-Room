@@ -1,4 +1,6 @@
 const sequelize = require("../../config/db");
+const Group = require("./Group");
+const GroupMember = require("./GroupMember");
 const Message = require("./Message");
 const User = require("./User");
 
@@ -14,4 +16,4 @@ const syncDatabase = async () => {
     }
 };
 
-module.exports = { syncDatabase, User, Message };
+module.exports = { syncDatabase, User, Message, Group, GroupMember };

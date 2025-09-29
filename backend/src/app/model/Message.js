@@ -8,11 +8,23 @@ const Message = sequelize.define("Message", {
     },
     receiver_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true // có thể là null nếu là tin nhắn nhóm
+    },
+    group_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true // có thể là null nếu là tin nhắn cá nhân
     },
     content: {
         type: DataTypes.TEXT,
-        allowNull: false
+        allowNull: true
+    },
+    image_url: {
+        type: DataTypes.TEXT,
+        allowNull: true // cho phép null nếu chỉ gửi text
+    },
+    is_read: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 }, {
     tableName: "messages",
