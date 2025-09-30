@@ -103,20 +103,3 @@ class ChatService {
 }
 
 module.exports = ChatService;
-// SELECT 
-//     NULL AS conversationId,
-//     NULL AS conversationName,
-//     MAX(m.created_at) AS lastTime,
-//     SUBSTRING_INDEX(
-//         SUBSTRING_INDEX(GROUP_CONCAT(m.content ORDER BY m.created_at DESC), ',', 1),
-//         ',', -1
-//     ) AS lastMessage,
-//     SUM(CASE WHEN m.receiver_id = :userId AND m.is_read = 0 THEN 1 ELSE 0 END) AS unreadCount,
-//     0 AS isGroup,
-//     u.id,
-//     u.name,
-//     u.email
-//     FROM messages m
-//     JOIN users u ON u.id = IF(m.sender_id = :userId, m.receiver_id, m.sender_id)
-//     WHERE m.sender_id = :userId OR m.receiver_id = :userId
-//     GROUP BY u.id, u.name, u.email

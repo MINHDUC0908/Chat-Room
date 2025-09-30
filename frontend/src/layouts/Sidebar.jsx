@@ -2,19 +2,20 @@
 import { useEffect, useState } from "react";
 import { FiEdit2, FiSearch } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import { formatTime } from "../utils/format";
 import Group from "../components/Group";
 import useUser from "../hooks/useUser";
 import ChatItem from "../components/ChatList";
 
-const socket = io("http://192.168.1.77:3000");
+const socket = io("http://10.45.118.243:3000");
 
 function SideBar() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { id: currentChatId } = useParams();
+    const location = useLocation();
     const [search, setSearch] = useState("");
     const [groupOpen, setGroupOpen] = useState(false);
     const { conversations, fetchConversations, setConversations } = useUser();
@@ -124,6 +125,9 @@ function SideBar() {
         }
     };
 
+    // Kiểm tra loại cuộc trò chuyện dựa trên đường dẫn
+    const isGroupChat = location.pathname.startsWith("/group-room");
+    const currentConversationId = currentChatId ? parseInt(currentChatId) : null;
     return (
         <div className="w-[350px] border-r border-gray-300 h-screen flex flex-col bg-white">
             <div className="flex justify-between items-center p-4">
@@ -157,18 +161,18 @@ function SideBar() {
                         key={c.chatId}
                         conversation={c}
                         formatTime={formatTime}
-                        isSelected={c.chatId == currentChatId}
+                        isSelected={
+                            isGroupChat
+                                ? c.isGroup && c.chatId == currentConversationId
+                                : !c.isGroup && c.chatId == currentConversationId
+                        } // Phân biệt dựa trên isGroup và chatId
                         onClick={() => {
-                            // Chuyển hướng tùy loại conversation
                             if (c.isGroup) {
                                 navigate(`/group-room/${c.chatId}`);
                             } else {
                                 navigate(`/chat-room/${c.chatId}`);
                             }
-
-                            // Reset unreadCount
-                            handleMarkAsRead(c.chatId)
-                            console.log(c.chatId)
+                            handleMarkAsRead(c.chatId);
                         }}
                     />
                 ))}

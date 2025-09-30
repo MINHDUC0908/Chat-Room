@@ -49,7 +49,7 @@ function useUser()
     };
 
     // Hiển thị tất cả tin nhắn
-    const fetchReceiver = async () => {
+    const fetchReceiver = async (receiverId) => {
         try {
             const res = await axios.get(api + `auth/user/${receiverId}`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }

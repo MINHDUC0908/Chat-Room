@@ -3,7 +3,7 @@ const sequelize = require("../../config/db");
 
 const User = sequelize.define("User", {
     id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT.UNSIGNED,
         primaryKey: true,
         autoIncrement: true
     },
@@ -14,9 +14,7 @@ const User = sequelize.define("User", {
     email: {
         type: DataTypes.STRING,
         allowNull: false,
-        validate: {
-            isEmail: true
-        }
+        validate: { isEmail: true }
     },
     password: {
         type: DataTypes.STRING,
@@ -24,11 +22,11 @@ const User = sequelize.define("User", {
     },
     image_url: {
         type: DataTypes.STRING,
-        allowNull: true // cho phép để trống
+        allowNull: true
     }
 }, {
-    timestamps: true, // thêm createdAt, updatedAt
-    tableName: "users" // đặt tên bảng rõ ràng
+    timestamps: true,
+    tableName: "users"
 });
 
 module.exports = User;

@@ -4,6 +4,6 @@ const router = express.Router()
 const group = require("../app/controller/GroupController")
 router.post("/create", group.createGroup)
 router.get("/all", group.getgroupAll)
-router.get("/members", group.getGroups)
+router.get("/members/:id", group.getGroup)
 
 module.exports = router

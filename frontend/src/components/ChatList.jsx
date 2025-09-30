@@ -1,3 +1,4 @@
+// ChatItem.jsx
 function ChatItem({ conversation, isSelected, onClick, formatTime }) {
     return (
         <div
@@ -10,23 +11,20 @@ function ChatItem({ conversation, isSelected, onClick, formatTime }) {
         >
             <img
                 src={conversation.avatar}
-                alt={conversation.displayName || "Nhóm hoặc người dùng"}
+                alt={conversation.displayName || "Nhóm hoặc người dùng"} // Sử dụng displayName
                 className="w-10 h-10 rounded-full"
             />
 
             <div className="flex-1">
-                <div className="font-medium">{conversation.displayName}</div>
-
+                <div className="font-medium">
+                    {conversation.displayName} {/* Sử dụng displayName trực tiếp */}
+                </div>
                 <div
                     className={`text-xs ${
-                        conversation.unreadCount > 0
-                            ? "text-red-500 font-semibold"
-                            : "text-black"  // khi đã đọc thì màu đen
+                        conversation.unreadCount > 0 ? "text-red-500 font-semibold" : "text-gray-500"
                     }`}
                 >
-                    {
-                        conversation.displayMessage === null ? "Đã gửi 1 ảnh" : conversation.displayMessage
-                    }
+                    {conversation.displayMessage}
                 </div>
             </div>
 

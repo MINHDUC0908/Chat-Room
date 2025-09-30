@@ -1,6 +1,6 @@
 
 
-const api = "http://192.168.1.77:3000/";
+const api = "http://10.45.118.243:3000/";
 
 
 export default api;

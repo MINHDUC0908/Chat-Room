@@ -28,11 +28,11 @@ class GroupController
         }
     }
 
-    async getGroups(req, res)
+    async getGroup(req, res)
     {
         try {
-            const userId = req.user.id;
-            const members = await GroupService.getGroups(userId);
+            const id = req.params.id;
+            const members = await GroupService.getGroup(id);
             res.status(200).json(members);
         } catch (error) {
             res.status(500).json({ message: "Lỗi server", error: error.message });

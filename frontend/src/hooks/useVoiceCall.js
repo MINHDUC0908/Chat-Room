@@ -10,8 +10,18 @@ import Emoji from "../components/Emoji";
 import useUser from "../hooks/useUser";
 import useChat from "../hooks/useChat";
 import ImageModal from "../components/Image";
+import VideoCallModal from "../components/VideoCallModal";
 
-const socket = io("http://10.45.118.243:3000/");
+const socket = io("http://192.168.1.77:3000");
+
+// STUN servers (Google's free STUN server)
+const iceServers = {
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+    ]
+};
+
 function ChatRoom({ setCurrentTitle }) {
     const { id: receiverId } = useParams();
     const { user } = useAuth();
@@ -20,19 +30,31 @@ function ChatRoom({ setCurrentTitle }) {
     const [uploadFile, setUploadFile] = useState(null);
 
     const { receiverInfo, fetchReceiver } = useUser();
-    const { chat, setChat, fetchMessages } = useChat()
+    const { chat, setChat, fetchMessages } = useChat();
     const messagesEndRef = useRef(null);
     const imageRef = useRef(null);
     const [emoji, setEmoji] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
 
+    // Video Call States
+    const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
+    const [isCalling, setIsCalling] = useState(false);
+    const [isReceiving, setIsReceiving] = useState(false);
+    const [localStream, setLocalStream] = useState(null);
+    const [remoteStream, setRemoteStream] = useState(null);
+    const [peerConnection, setPeerConnection] = useState(null);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isVideoOff, setIsVideoOff] = useState(false);
+    const [incomingCallerId, setIncomingCallerId] = useState(null);
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     }, [chat]);
-    // Hiển thị tin nhắn
+
     useEffect(() => {
         if (receiverId) fetchReceiver(receiverId);
     }, [receiverId]);
+
     useEffect(() => {
         setCurrentTitle(`Hộp thư - Direct`);
     }, [receiverId, setCurrentTitle]);
@@ -41,12 +63,12 @@ function ChatRoom({ setCurrentTitle }) {
         if (user) fetchMessages(receiverId);
     }, [receiverId, user]);
 
+    // Socket handlers for chat
     useEffect(() => {
         if (!user) return;
 
         socket.emit("join", user.id);
 
-        // Lắng nghe tin nhắn văn bản
         socket.on("private_message", (msg) => {
             if (
                 (msg.sender_id === user.id && msg.receiver_id === parseInt(receiverId)) ||
@@ -56,13 +78,11 @@ function ChatRoom({ setCurrentTitle }) {
             }
         });
 
-        // Lắng nghe tin nhắn ảnh từ server
         socket.on("new_message", (msg) => {
             if (
                 (msg.senderId === user.id && msg.receiverId === parseInt(receiverId)) ||
                 (msg.senderId === parseInt(receiverId) && msg.receiverId === user.id)
             ) {
-                // ✅ Map đúng field từ server sang client
                 setChat((prev) => [...prev, {
                     sender_id: msg.senderId,
                     receiver_id: msg.receiverId,
@@ -85,6 +105,323 @@ function ChatRoom({ setCurrentTitle }) {
             socket.off("messages_read");
         };
     }, [user, receiverId]);
+
+    // Video Call Socket Handlers
+    useEffect(() => {
+        if (!user) return;
+
+        // Nhận cuộc gọi đến
+        socket.on("incoming_video_call", ({ callerId, callerName }) => {
+            console.log("📞 Incoming call from:", callerId);
+            setIncomingCallerId(callerId);
+            setIsReceiving(true);
+            setIsVideoCallOpen(true);
+        });
+
+        // Cuộc gọi được chấp nhận
+        socket.on("video_call_accepted", async () => {
+            console.log("✅ Call accepted, creating offer...");
+            setIsCalling(false);
+            await createOffer();
+        });
+
+        // Cuộc gọi bị từ chối
+        socket.on("video_call_rejected", () => {
+            alert("Cuộc gọi bị từ chối");
+            endCall();
+        });
+
+        // Nhận WebRTC offer
+        socket.on("video_offer", async ({ offer }) => {
+            console.log("📥 Received offer");
+            await handleReceiveOffer(offer);
+        });
+
+        // Nhận WebRTC answer
+        socket.on("video_answer", async ({ answer }) => {
+            console.log("📥 Received answer");
+            await handleReceiveAnswer(answer);
+        });
+
+        // Nhận ICE candidate
+        socket.on("ice_candidate", async ({ candidate }) => {
+            console.log("🧊 Received ICE candidate");
+            if (peerConnection && candidate) {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (err) {
+                    console.error("Error adding ICE candidate:", err);
+                }
+            }
+        });
+
+        // Cuộc gọi kết thúc
+        socket.on("video_call_ended", () => {
+            console.log("☎️ Call ended by remote user");
+            endCall();
+        });
+
+        return () => {
+            socket.off("incoming_video_call");
+            socket.off("video_call_accepted");
+            socket.off("video_call_rejected");
+            socket.off("video_offer");
+            socket.off("video_answer");
+            socket.off("ice_candidate");
+            socket.off("video_call_ended");
+        };
+    }, [user, peerConnection]);
+
+    // Khởi tạo WebRTC Connection
+    const initializePeerConnection = () => {
+        const pc = new RTCPeerConnection(iceServers);
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log("🧊 Sending ICE candidate");
+                socket.emit("ice_candidate", {
+                    candidate: event.candidate,
+                    receiverId: parseInt(receiverId)
+                });
+            }
+        };
+
+        pc.ontrack = (event) => {
+            console.log("📹 Received remote stream");
+            setRemoteStream(event.streams[0]);
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            console.log("ICE Connection State:", pc.iceConnectionState);
+        };
+
+        setPeerConnection(pc);
+        return pc;
+    };
+
+    // Bắt đầu gọi video
+    const startVideoCall = async () => {
+    try {
+        console.log("📞 Starting video call...");
+        
+        // 1. LẤY CAMERA TRƯỚC - Quan trọng!
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+        setLocalStream(stream);
+        console.log("✅ Got local stream");
+
+        // 2. Mới hiển thị modal
+        setIsCalling(true);
+        setIsVideoCallOpen(true);
+
+        // 3. Gửi yêu cầu gọi
+        socket.emit("video_call_request", {
+            callerId: user.id,
+            receiverId: parseInt(receiverId),
+            callerName: user.name
+        });
+        
+        console.log("📞 Call request sent");
+
+    } catch (error) {
+        console.error("❌ Error starting video call:", error);
+        alert("Không thể truy cập camera/microphone");
+        endCall();
+    }
+};
+
+    // Tạo WebRTC Offer
+    const createOffer = async () => {
+    try {
+        console.log("📤 Creating offer...");
+        
+        // Đảm bảo có localStream
+        if (!localStream) {
+            console.error("❌ No local stream when creating offer!");
+            // Thử lấy lại
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+            setLocalStream(stream);
+            console.log("✅ Got local stream (retry)");
+        }
+        
+        // Đợi 100ms để đảm bảo state đã update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const currentStream = localStream;
+        if (!currentStream) {
+            console.error("❌ Still no stream!");
+            return;
+        }
+        
+        const pc = initializePeerConnection();
+
+        // Thêm tracks
+        currentStream.getTracks().forEach(track => {
+            console.log("➕ Adding track to offer:", track.kind, track.enabled);
+            pc.addTrack(track, currentStream);
+        });
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        console.log("📤 Sending offer");
+        socket.emit("video_offer", {
+            offer: offer,
+            receiverId: parseInt(receiverId)
+        });
+
+        console.log("✅ Offer sent");
+    } catch (error) {
+        console.error("❌ Error creating offer:", error);
+    }
+};
+    // Xử lý khi nhận offer
+    const handleReceiveOffer = async (offer) => {
+        try {
+            console.log("📥 Handling received offer...");
+            const pc = initializePeerConnection();
+
+            // Lấy local stream nếu chưa có
+            if (!localStream) {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+                setLocalStream(stream);
+
+                stream.getTracks().forEach(track => {
+                    pc.addTrack(track, stream);
+                });
+            } else {
+                localStream.getTracks().forEach(track => {
+                    pc.addTrack(track, localStream);
+                });
+            }
+
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            socket.emit("video_answer", {
+                answer: answer,
+                receiverId: parseInt(receiverId)
+            });
+
+            console.log("✅ Answer sent");
+        } catch (error) {
+            console.error("❌ Error handling offer:", error);
+        }
+    };
+
+    // Xử lý khi nhận answer
+    const handleReceiveAnswer = async (answer) => {
+        try {
+            if (peerConnection) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                console.log("✅ Answer processed");
+            }
+        } catch (error) {
+            console.error("❌ Error handling answer:", error);
+        }
+    };
+
+    // Chấp nhận cuộc gọi
+    const acceptCall = async () => {
+        try {
+            console.log("✅ Accepting call...");
+            setIsReceiving(false);
+            
+            // Lấy local stream trước khi accept
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+            setLocalStream(stream);
+
+            socket.emit("accept_video_call", {
+                callerId: incomingCallerId,
+                receiverId: user.id
+            });
+        } catch (error) {
+            console.error("❌ Error accepting call:", error);
+            alert("Không thể truy cập camera/microphone");
+            endCall();
+        }
+    };
+
+    // Từ chối cuộc gọi
+    const rejectCall = () => {
+        console.log("❌ Rejecting call");
+        socket.emit("reject_video_call", {
+            callerId: incomingCallerId,
+            receiverId: user.id
+        });
+        endCall();
+    };
+
+    // Kết thúc cuộc gọi
+    const endCall = () => {
+        console.log("☎️ Ending call...");
+        
+        // Dừng tất cả tracks
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        if (remoteStream) {
+            remoteStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Đóng peer connection
+        if (peerConnection) {
+            peerConnection.close();
+        }
+
+        // Thông báo cho người kia
+        if (isVideoCallOpen) {
+            socket.emit("end_video_call", {
+                receiverId: parseInt(receiverId)
+            });
+        }
+
+        // Reset states
+        setIsVideoCallOpen(false);
+        setIsCalling(false);
+        setIsReceiving(false);
+        setLocalStream(null);
+        setRemoteStream(null);
+        setPeerConnection(null);
+        setIsMuted(false);
+        setIsVideoOff(false);
+        setIncomingCallerId(null);
+    };
+
+    // Toggle mute
+    const toggleMute = () => {
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMuted(!audioTrack.enabled);
+            }
+        }
+    };
+
+    // Toggle video
+    const toggleVideo = () => {
+        if (localStream) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsVideoOff(!videoTrack.enabled);
+            }
+        }
+    };
+
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -97,7 +434,6 @@ function ChatRoom({ setCurrentTitle }) {
     const sendMessage = async (e) => {
         e.preventDefault();
 
-        // Gửi tin nhắn text trước (nếu có)
         if (message.trim()) {
             const newMsg = {
                 sender_id: user.id,
@@ -107,6 +443,7 @@ function ChatRoom({ setCurrentTitle }) {
             socket.emit("private_message", newMsg);
             setMessage("");
         }
+
         if (uploadFile) {
             const formData = new FormData();
             formData.append("image", uploadFile);
@@ -120,19 +457,14 @@ function ChatRoom({ setCurrentTitle }) {
                 });
                 if (res.data.success && res.data.message?.imageUrl) {
                     const imageUrl = res.data.message.imageUrl;
-                    console.log("📷 Sending image via socket:", imageUrl);
-
                     socket.emit("send_image_message", {
                         senderId: user.id,
                         receiverId: parseInt(receiverId),
-                        fileUrl: imageUrl,  
+                        fileUrl: imageUrl,
                     });
-
-                    // Reset preview
                     setPreviewImage(null);
                     setUploadFile(null);
                 } else {
-                    console.error("❌ Upload failed:", res.data);
                     alert("Upload ảnh thất bại!");
                 }
             } catch (error) {
@@ -141,12 +473,14 @@ function ChatRoom({ setCurrentTitle }) {
             }
         }
     };
+
     const handleSelectEmoji = (emoji) => {
         setMessage(prev => prev + emoji);
     };
-    
+
     return (
         <div className="flex flex-col h-screen">
+            {/* Header */}
             <div className="flex items-center justify-between p-4 bg-white shadow-md rounded-t-lg border-b mb-1">
                 <div className="flex items-center gap-3">
                     <span className="font-semibold text-lg">
@@ -162,10 +496,12 @@ function ChatRoom({ setCurrentTitle }) {
                     <FiVideo
                         className="w-6 h-6 text-blue-500 cursor-pointer hover:scale-110 transition-transform"
                         title="Gọi video"
-                        onClick={() => console.log("Gọi video")}
+                        onClick={startVideoCall}
                     />
                 </div>
             </div>
+
+            {/* Messages */}
             <div className="flex-1 p-4 overflow-y-auto bg-white">
                 {chat.map((msg, i) => {
                     const isCurrentUser = msg.sender_id === user?.id;
@@ -201,22 +537,20 @@ function ChatRoom({ setCurrentTitle }) {
                                 >
                                     {msg.image_url && (
                                         <img
-                                            src={`http://10.45.118.243:3000${msg.image_url}`}
+                                            src={`http://192.168.1.77:3000${msg.image_url}`}
                                             alt="message"
                                             className="max-w-[200px] max-h-[200px] rounded-lg mb-2 cursor-pointer"
                                             onClick={() =>
-                                                setSelectedImage(`http://10.45.118.243:3000${msg.image_url}`)
+                                                setSelectedImage(`http://192.168.1.77:3000${msg.image_url}`)
                                             }
                                             onLoad={() => {
                                                 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
                                             }}
                                             onError={(e) => {
-                                                console.error("❌ Image load failed:", msg.image_url);
                                                 e.target.style.display = "none";
                                             }}
                                         />
                                     )}
-
                                     {msg.content}
                                 </div>
                             </div>
@@ -234,8 +568,10 @@ function ChatRoom({ setCurrentTitle }) {
                 })}
                 <div ref={messagesEndRef} />
             </div>
+
+            {/* Image Preview */}
             {previewImage && (
-                <div className="flex justify-end mb-2">
+                <div className="flex justify-end mb-2 px-4">
                     <div className="rounded-2xl max-w-xs">
                         <img
                             src={previewImage}
@@ -257,6 +593,8 @@ function ChatRoom({ setCurrentTitle }) {
                     </div>
                 </div>
             )}
+
+            {/* Input Form */}
             <form onSubmit={sendMessage} className="flex items-center p-2 border-t bg-white">
                 <label htmlFor="file-upload" className="p-2 text-gray-500 hover:text-gray-700 cursor-pointer">
                     <FiImage size={20} />
@@ -298,7 +636,27 @@ function ChatRoom({ setCurrentTitle }) {
                     <FiSend />
                 </button>
             </form>
+
             {emoji && <Emoji onSelect={handleSelectEmoji} />}
+
+            {/* Video Call Modal */}
+            <VideoCallModal
+                isOpen={isVideoCallOpen}
+                onClose={endCall}
+                localStream={localStream}
+                remoteStream={remoteStream}
+                isCalling={isCalling}
+                isReceiving={isReceiving}
+                onAccept={acceptCall}
+                onReject={rejectCall}
+                callerName={receiverInfo?.name}
+                isMuted={isMuted}
+                isVideoOff={isVideoOff}
+                onToggleMute={toggleMute}
+                onToggleVideo={toggleVideo}
+            />
+
+            {/* Image Modal */}
             <ImageModal
                 isOpen={!!selectedImage}
                 onClose={() => setSelectedImage(null)}
