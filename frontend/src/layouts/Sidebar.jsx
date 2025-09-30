@@ -9,7 +9,7 @@ import Group from "../components/Group";
 import useUser from "../hooks/useUser";
 import ChatItem from "../components/ChatList";
 
-const socket = io("http://10.45.118.243:3000");
+const socket = io("http://192.168.1.77:3000");
 
 function SideBar() {
     const { user } = useAuth();
