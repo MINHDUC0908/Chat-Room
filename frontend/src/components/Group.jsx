@@ -4,7 +4,7 @@ import { useState } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
 
-const socket = io("http://10.45.118.243:3000/");
+const socket = io("http://192.168.1.18:3000/");
 
 function Group({ setGroup }) {
     const { usersGr } = useUser();

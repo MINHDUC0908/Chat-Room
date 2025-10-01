@@ -1,6 +1,6 @@
-const { QueryTypes } = require("sequelize");
+const { QueryTypes, Model } = require("sequelize");
 const sequelize = require("../../config/db");
-const { Group, GroupMember, GroupMessage } = require("../model");
+const { Group, GroupMember, GroupMessage, User } = require("../model");
 
 class GroupService
 {
@@ -72,6 +72,26 @@ class GroupService
             return mes
         } catch (error) {
             console.error("❌ Lỗi khi lấy nhóm:", error);
+            throw error;
+        }
+    }
+
+    async getAllMesGr(groupId) {
+        try {
+            const mes = await GroupMessage.findAll({
+                where: { group_id: groupId },   
+                include: [
+                    {
+                        model: User,   
+                        as: "sender",
+                        attributes: ["name", "email"] 
+                    }
+                ],
+                order: [["created_at", "ASC"]]  
+            });
+            return mes;
+        } catch (error) {
+            console.error("❌ Lỗi khi lấy tin nhắn nhóm:", error);
             throw error;
         }
     }

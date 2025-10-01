@@ -38,6 +38,29 @@ class GroupController
             res.status(500).json({ message: "Lỗi server", error: error.message });
         }
     }
+
+    async createGroup(req, res)
+    {
+        try {
+            const userId = req.user.id;
+            const { groupId, content } = req.body
+            const mes = await GroupService.createMessageGroup(groupId, userId, content)
+            res.status(200).json(mes)
+        } catch (error) {
+            res.status(500).json({ message: "Lỗi server", error: error.message });
+        }
+    }
+
+    async getAllMesGr(req, res)
+    {
+        try {
+            const groudId = req.params.id
+            const mes = await GroupService.getAllMesGr(groudId)
+            res.status(200).json(mes)
+        } catch (error) {
+            res.status(500).json({ message: "Lỗi server", error: error.message });
+        }
+    }
 }
 
 module.exports = new GroupController();

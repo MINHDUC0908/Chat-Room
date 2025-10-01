@@ -667,3 +667,73 @@ function ChatRoom({ setCurrentTitle }) {
 }
 
 export default ChatRoom;
+
+
+
+
+
+        // ===== VIDEO CALL HANDLERS =====
+        // Gửi lời mời gọi video
+        socket.on("video_call_request", ({ callerId, receiverId, callerName }) => {
+            console.log(`📞 Video call from ${callerId} to ${receiverId}`);
+            
+            io.to(`user_${receiverId}`).emit("incoming_video_call", {
+                callerId,
+                callerName,
+                socketId: socket.id
+            });
+        });
+
+        // Người nhận chấp nhận cuộc gọi
+        socket.on("accept_video_call", ({ callerId, receiverId }) => {
+            console.log(`✅ Call accepted: ${receiverId} accepted ${callerId}`);
+            
+            io.to(`user_${callerId}`).emit("video_call_accepted", {
+                receiverId,
+                socketId: socket.id
+            });
+        });
+
+        // Người nhận từ chối cuộc gọi
+        socket.on("reject_video_call", ({ callerId, receiverId }) => {
+            console.log(`❌ Call rejected: ${receiverId} rejected ${callerId}`);
+            
+            io.to(`user_${callerId}`).emit("video_call_rejected", {
+                receiverId
+            });
+        });
+
+        // WebRTC Signaling: Gửi offer
+        socket.on("video_offer", ({ offer, receiverId }) => {
+            console.log(`📤 Sending offer to user ${receiverId}`);
+            
+            io.to(`user_${receiverId}`).emit("video_offer", {
+                offer,
+                senderId: socket.id
+            });
+        });
+
+        // WebRTC Signaling: Gửi answer
+        socket.on("video_answer", ({ answer, receiverId }) => {
+            console.log(`📥 Sending answer to user ${receiverId}`);
+            
+            io.to(`user_${receiverId}`).emit("video_answer", {
+                answer,
+                senderId: socket.id
+            });
+        });
+
+        // WebRTC Signaling: Trao đổi ICE candidates
+        socket.on("ice_candidate", ({ candidate, receiverId }) => {
+            io.to(`user_${receiverId}`).emit("ice_candidate", {
+                candidate,
+                senderId: socket.id
+            });
+        });
+
+        // Kết thúc cuộc gọi
+        socket.on("end_video_call", ({ receiverId }) => {
+            console.log(`☎️ Call ended`);
+            
+            io.to(`user_${receiverId}`).emit("video_call_ended");
+        });

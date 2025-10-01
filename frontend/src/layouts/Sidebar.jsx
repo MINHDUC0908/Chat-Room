@@ -1,5 +1,5 @@
 // SideBar.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { FiEdit2, FiSearch } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -9,7 +9,7 @@ import Group from "../components/Group";
 import useUser from "../hooks/useUser";
 import ChatItem from "../components/ChatList";
 
-const socket = io("http://192.168.1.77:3000");
+const socket = io("http://192.168.1.18:3000");
 
 function SideBar() {
     const { user } = useAuth();
@@ -19,54 +19,81 @@ function SideBar() {
     const [search, setSearch] = useState("");
     const [groupOpen, setGroupOpen] = useState(false);
     const { conversations, fetchConversations, setConversations } = useUser();
-    console.log("Conversations from useUser hook:", conversations);
-    useEffect(() => {
-        fetchConversations();
 
+    useEffect(() => {
+        console.log("🔄 [SideBar] useEffect chạy, user:", user?.id);
+        fetchConversations();
+        
         if (user?.id) {
             socket.emit("join", user.id);
+            console.log("✅ [SideBar] Joined room:", `user_${user.id}`);
         }
-
+        
+        // SideBar.jsx - Sửa phần tìm conversation
         socket.on("private_message", (msg, senderInfo) => {
-            const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
-            const isMyMessage = msg.sender_id === user.id;
-
+            console.log("=== SOCKET EVENT: private_message ===");
+            console.log("📩 Message:", msg);
+            console.log("👤 SenderInfo:", senderInfo);
+            console.log("🆔 Current user ID:", user?.id);
+            
+            // ✅ Ép kiểu về number
+            const otherUserId = parseInt(msg.sender_id === user?.id ? msg.receiver_id : msg.sender_id);
+            const isMyMessage = msg.sender_id === user?.id;
+            
+            console.log("🎯 Other User ID:", otherUserId, typeof otherUserId);
+            console.log("✍️ Is my message:", isMyMessage);
+            
             setConversations((prev) => {
-                const exists = prev.find(
-                    (c) => (c.isGroup ? c.conversationId : c.id) === otherUserId
+                console.log("📋 Current conversations:", prev);
+                console.log("🔍 Looking for conversation with ID:", otherUserId);
+                
+                const existingIndex = prev.findIndex(
+                    (c) => {
+                        const convId = parseInt(c.isGroup ? c.conversationId : c.id); // ✅ Ép kiểu
+                        const match = convId === otherUserId; // ✅ So sánh === sau khi ép kiểu
+                        console.log(`  Checking: c.id=${c.id}, convId=${convId}, otherUserId=${otherUserId}, match=${match}`);
+                        return match;
+                    }
                 );
-                if (exists) {
-                    // Cập nhật tin nhắn cuối và unreadCount
-                    const updated = prev.filter(
-                        (c) => (c.isGroup ? c.conversationId : c.id) !== otherUserId
-                    );
-                    return [
-                        {
-                            ...exists,
-                            lastMessage: msg.content,
-                            lastTime: new Date().toISOString(),
-                            unreadCount: isMyMessage ? exists.unreadCount : exists.unreadCount + 1
-                        },
-                        ...updated
-                    ];
-                } else if (senderInfo) {
-                    // Tạo conversation mới nếu chưa có
-                    return [
-                        {
-                            ...senderInfo,
+                
+                console.log("📍 Found at index:", existingIndex);
+                
+                if (existingIndex !== -1) {
+                    const exists = prev[existingIndex];
+                    console.log("✏️ Updating existing conversation:", exists);
+                    
+                    const updated = [...prev];
+                    updated.splice(existingIndex, 1);
+                    
+                    const newConv = {
+                        ...exists,
+                        lastMessage: msg.content,
+                        lastTime: msg.created_at || new Date().toISOString(),
+                        unreadCount: isMyMessage ? exists.unreadCount : (exists.unreadCount || 0) + 1
+                    };
+                    
+                    const result = [newConv, ...updated];
+                    console.log("✅ Updated conversation:", newConv);
+                    return result;
+                } else {
+                    console.log("⚠️ Conversation not found!");
+                    if (senderInfo) {
+                        console.log("➕ Creating new conversation");
+                        const newConv = {
                             id: senderInfo.id,
                             name: senderInfo.name,
                             email: senderInfo.email,
-                            avatar: `https://i.pravatar.cc/50?u=${senderInfo.id}`,
+                            avatar: senderInfo.avatar || `https://i.pravatar.cc/50?u=${senderInfo.id}`,
                             lastMessage: msg.content,
-                            lastTime: new Date().toISOString(),
+                            lastTime: msg.created_at || new Date().toISOString(),
                             unreadCount: isMyMessage ? 0 : 1,
                             isGroup: 0,
-                        },
-                        ...prev
-                    ];
-                } else {
-                    return prev;
+                        };
+                        return [newConv, ...prev];
+                    } else {
+                        console.log("❌ No senderInfo provided, returning prev");
+                        return prev;
+                    }
                 }
             });
         });
@@ -74,7 +101,7 @@ function SideBar() {
         socket.on("group_created", (newGroup) => {
             const normalizedGroup = {
                 ...newGroup,
-                chatId: newGroup.id, // đúng field từ backend
+                chatId: newGroup.id,
                 conversationId: newGroup.id,
                 conversationName: newGroup.name,
                 displayName: newGroup.name || "Nhóm không tên",
@@ -91,9 +118,8 @@ function SideBar() {
             socket.off("private_message");
             socket.off("group_created");
         };
-    }, [user]);
+    }, [user?.id]);
 
-    // Chuẩn hóa dữ liệu để hiển thị
     const normalizedConversations = conversations.map((c) => {
         const normalized = {
             ...c,
@@ -109,7 +135,6 @@ function SideBar() {
         conv.displayName.toLowerCase().includes(search.toLowerCase())
     );
 
-    
     const handleMarkAsRead = (chatId) => {
         setConversations(prev =>
             prev.map(conv =>
@@ -118,16 +143,15 @@ function SideBar() {
                     : conv
             )
         );
-        // gửi socket
         const conv = conversations.find(c => (c.isGroup ? c.conversationId : c.id) === chatId);
         if (conv && !conv.isGroup && user?.id) {
             socket.emit("mark_as_read", { userId: user.id, senderId: conv.id });
         }
     };
 
-    // Kiểm tra loại cuộc trò chuyện dựa trên đường dẫn
     const isGroupChat = location.pathname.startsWith("/group-room");
     const currentConversationId = currentChatId ? parseInt(currentChatId) : null;
+    
     return (
         <div className="w-[350px] border-r border-gray-300 h-screen flex flex-col bg-white">
             <div className="flex justify-between items-center p-4">
@@ -156,16 +180,16 @@ function SideBar() {
 
             <div className="pt-2 border-t border-gray-300 flex-1 overflow-y-auto">
                 <div className="font-bold mb-2 px-4">Tin nhắn</div>
-                {filteredConversations.map((c) => (
+                {filteredConversations.map((c, index) => (
                     <ChatItem
-                        key={c.chatId}
+                        key={`${c.chatId}-${index}`}
                         conversation={c}
                         formatTime={formatTime}
                         isSelected={
                             isGroupChat
                                 ? c.isGroup && c.chatId == currentConversationId
                                 : !c.isGroup && c.chatId == currentConversationId
-                        } // Phân biệt dựa trên isGroup và chatId
+                        }
                         onClick={() => {
                             if (c.isGroup) {
                                 navigate(`/group-room/${c.chatId}`);

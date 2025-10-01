@@ -1,6 +1,6 @@
+// ChatRoom.jsx
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { io } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
 import axios from "axios";
 import api from "../api/api";
@@ -10,8 +10,8 @@ import Emoji from "../components/Emoji";
 import useUser from "../hooks/useUser";
 import useChat from "../hooks/useChat";
 import ImageModal from "../components/Image";
+import socket from "../utils/socket";
 
-const socket = io("http://192.168.1.77:3000");
 function ChatRoom({ setCurrentTitle }) {
     const { id: receiverId } = useParams();
     const { user } = useAuth();
@@ -19,8 +19,8 @@ function ChatRoom({ setCurrentTitle }) {
     const [previewImage, setPreviewImage] = useState(null);
     const [uploadFile, setUploadFile] = useState(null);
 
-    const { receiverInfo, fetchReceiver } = useUser();
-    const { chat, setChat, fetchMessages } = useChat()
+    const { receiverInfo, fetchReceiver, setConversations } = useUser(); // ✅ Thêm setConversations
+    const { chat, setChat, fetchMessages } = useChat();
     const messagesEndRef = useRef(null);
     const imageRef = useRef(null);
     const [emoji, setEmoji] = useState(false);
@@ -29,10 +29,11 @@ function ChatRoom({ setCurrentTitle }) {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     }, [chat]);
-    // Hiển thị tin nhắn
+
     useEffect(() => {
         if (receiverId) fetchReceiver(receiverId);
     }, [receiverId]);
+
     useEffect(() => {
         setCurrentTitle(`Hộp thư - Direct`);
     }, [receiverId, setCurrentTitle]);
@@ -46,7 +47,6 @@ function ChatRoom({ setCurrentTitle }) {
 
         socket.emit("join", user.id);
 
-        // Lắng nghe tin nhắn văn bản
         socket.on("private_message", (msg) => {
             if (
                 (msg.sender_id === user.id && msg.receiver_id === parseInt(receiverId)) ||
@@ -56,13 +56,11 @@ function ChatRoom({ setCurrentTitle }) {
             }
         });
 
-        // Lắng nghe tin nhắn ảnh từ server
-        socket.on("new_message", (msg) => {
+        socket.on("send_image_message", (msg) => {
             if (
                 (msg.senderId === user.id && msg.receiverId === parseInt(receiverId)) ||
                 (msg.senderId === parseInt(receiverId) && msg.receiverId === user.id)
             ) {
-                // ✅ Map đúng field từ server sang client
                 setChat((prev) => [...prev, {
                     sender_id: msg.senderId,
                     receiver_id: msg.receiverId,
@@ -81,10 +79,11 @@ function ChatRoom({ setCurrentTitle }) {
 
         return () => {
             socket.off("private_message");
-            socket.off("new_message");
+            socket.off("send_image_message");
             socket.off("messages_read");
         };
     }, [user, receiverId]);
+
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -97,20 +96,48 @@ function ChatRoom({ setCurrentTitle }) {
     const sendMessage = async (e) => {
         e.preventDefault();
 
-        // Gửi tin nhắn text trước (nếu có)
         if (message.trim()) {
             const newMsg = {
                 sender_id: user.id,
                 receiver_id: parseInt(receiverId),
                 content: message,
             };
+            
+            console.log("📤 [ChatRoom] Sending message:", newMsg);
             socket.emit("private_message", newMsg);
+            
+            // ✅ Cập nhật sidebar ngay lập tức
+            setConversations((prev) => {
+                const existingIndex = prev.findIndex(
+                    (c) => (c.isGroup ? c.conversationId : c.id) === parseInt(receiverId)
+                );
+                
+                if (existingIndex !== -1) {
+                    const exists = prev[existingIndex];
+                    const updated = [...prev];
+                    updated.splice(existingIndex, 1);
+                    
+                    return [
+                        {
+                            ...exists,
+                            lastMessage: message,
+                            lastTime: new Date().toISOString(),
+                        },
+                        ...updated
+                    ];
+                }
+                return prev;
+            });
+            
             setMessage("");
+            setEmoji(false)
         }
+        
         if (uploadFile) {
             const formData = new FormData();
             formData.append("image", uploadFile);
             formData.append("receiverId", receiverId);
+            
             try {
                 const res = await axios.post(api + "image/upload-message-image", formData, {
                     headers: {
@@ -118,6 +145,7 @@ function ChatRoom({ setCurrentTitle }) {
                         "Content-Type": "multipart/form-data",
                     },
                 });
+                
                 if (res.data.success && res.data.message?.imageUrl) {
                     const imageUrl = res.data.message.imageUrl;
                     console.log("📷 Sending image via socket:", imageUrl);
@@ -127,8 +155,30 @@ function ChatRoom({ setCurrentTitle }) {
                         receiverId: parseInt(receiverId),
                         fileUrl: imageUrl,  
                     });
+                    
+                    // ✅ Cập nhật sidebar với ảnh
+                    setConversations((prev) => {
+                        const existingIndex = prev.findIndex(
+                            (c) => (c.isGroup ? c.conversationId : c.id) === parseInt(receiverId)
+                        );
+                        
+                        if (existingIndex !== -1) {
+                            const exists = prev[existingIndex];
+                            const updated = [...prev];
+                            updated.splice(existingIndex, 1);
+                            
+                            return [
+                                {
+                                    ...exists,
+                                    lastMessage: "📷 Đã gửi ảnh",
+                                    lastTime: new Date().toISOString(),
+                                },
+                                ...updated
+                            ];
+                        }
+                        return prev;
+                    });
 
-                    // Reset preview
                     setPreviewImage(null);
                     setUploadFile(null);
                 } else {
@@ -141,6 +191,7 @@ function ChatRoom({ setCurrentTitle }) {
             }
         }
     };
+
     const handleSelectEmoji = (emoji) => {
         setMessage(prev => prev + emoji);
     };
@@ -201,11 +252,11 @@ function ChatRoom({ setCurrentTitle }) {
                                 >
                                     {msg.image_url && (
                                         <img
-                                            src={`http://192.168.1.77:3000${msg.image_url}`}
+                                            src={`http://192.168.1.18:3000${msg.image_url}`}
                                             alt="message"
                                             className="max-w-[200px] max-h-[200px] rounded-lg mb-2 cursor-pointer"
                                             onClick={() =>
-                                                setSelectedImage(`http://192.168.1.77:3000${msg.image_url}`)
+                                                setSelectedImage(`http://192.168.1.18:3000${msg.image_url}`)
                                             }
                                             onLoad={() => {
                                                 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

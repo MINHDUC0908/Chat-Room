@@ -2,7 +2,7 @@
 const { Server } = require("socket.io");
 const ChatService = require("../app/service/ChatService");
 const GroupService = require("../app/service/GroupService");
-const ImageService = require("../app/service/ImageService");
+const { User } = require("../app/model");
 
 let io;
 
@@ -28,23 +28,31 @@ function initSocket(server) {
             try {
                 const msg = await ChatService.saveMessage(sender_id, receiver_id, content);
 
-                // Gửi cho người nhận
-                io.to(`user_${receiver_id}`).emit("private_message", msg);
+                // ✅ Lấy thông tin người gửi
+                const sender = await User.findByPk(sender_id);
+                const senderInfo = sender ? {
+                    id: sender.id,
+                    name: sender.name,
+                    email: sender.email,
+                    avatar: `https://i.pravatar.cc/50?u=${sender.id}`
+                } : null;
 
-                // Gửi lại cho người gửi để hiển thị
-                io.to(`user_${sender_id}`).emit("private_message", msg);
+                // ✅ Gửi kèm senderInfo cho người nhận (để hiện toast)
+                io.to(`user_${receiver_id}`).emit("private_message", msg, senderInfo);
+
+                // ✅ Gửi cho người gửi (không cần senderInfo vì là tin nhắn của chính họ)
+                io.to(`user_${sender_id}`).emit("private_message", msg, null);
             } catch (err) {
                 console.error("❌ Error saving message:", err);
             }
         });
-
         // Gửi ảnh trong chat (Dùng sau khi upload thành công)
         socket.on("send_image_message", async ({ senderId, receiverId, groupId, fileUrl }) => {
             try {
                 const filename = fileUrl.split('/').pop(); // Lấy "1759157697072.png"
                 // Tạo message trong DB
                 const message = {
-                    senderId,
+                    senderId: senderId,
                     receiverId: receiverId || null,
                     groupId: groupId || null,
                     imageUrl: fileUrl,
@@ -52,15 +60,20 @@ function initSocket(server) {
                     isRead: false
                 };
 
-                console.log("✅ Image message saved to DB:", message);
-                console.log("🖼️  Image URL from DB:", message.imageUrl);
+                const sender = await User.findByPk(senderId);
+                const senderInfo = sender ? {
+                    id: sender.id,
+                    name: sender.name,
+                    email: sender.email,
+                    avatar: `https://i.pravatar.cc/50?u=${sender.id}`
+                } : null;
 
                 // Gửi socket cho người nhận hoặc group
                 if (receiverId) {
-                    io.to(`user_${receiverId}`).emit("new_message", message);
-                    io.to(`user_${senderId}`).emit("new_message", message);
+                    io.to(`user_${receiverId}`).emit("send_image_message", message, senderInfo);
+                    io.to(`user_${senderId}`).emit("send_image_message", message);
                 } else if (groupId) {
-                    io.to(`group_${groupId}`).emit("new_message", message);
+                    io.to(`group_${groupId}`).emit("send_image_message", message);
                 }
 
                 console.log("📷 Image message sent:", message);
@@ -86,74 +99,6 @@ function initSocket(server) {
                 console.error("❌ Error marking messages as read:", err);
             }
         });
-
-
-        // ===== VIDEO CALL HANDLERS =====
-        // Gửi lời mời gọi video
-        socket.on("video_call_request", ({ callerId, receiverId, callerName }) => {
-            console.log(`📞 Video call from ${callerId} to ${receiverId}`);
-            
-            io.to(`user_${receiverId}`).emit("incoming_video_call", {
-                callerId,
-                callerName,
-                socketId: socket.id
-            });
-        });
-
-        // Người nhận chấp nhận cuộc gọi
-        socket.on("accept_video_call", ({ callerId, receiverId }) => {
-            console.log(`✅ Call accepted: ${receiverId} accepted ${callerId}`);
-            
-            io.to(`user_${callerId}`).emit("video_call_accepted", {
-                receiverId,
-                socketId: socket.id
-            });
-        });
-
-        // Người nhận từ chối cuộc gọi
-        socket.on("reject_video_call", ({ callerId, receiverId }) => {
-            console.log(`❌ Call rejected: ${receiverId} rejected ${callerId}`);
-            
-            io.to(`user_${callerId}`).emit("video_call_rejected", {
-                receiverId
-            });
-        });
-
-        // WebRTC Signaling: Gửi offer
-        socket.on("video_offer", ({ offer, receiverId }) => {
-            console.log(`📤 Sending offer to user ${receiverId}`);
-            
-            io.to(`user_${receiverId}`).emit("video_offer", {
-                offer,
-                senderId: socket.id
-            });
-        });
-
-        // WebRTC Signaling: Gửi answer
-        socket.on("video_answer", ({ answer, receiverId }) => {
-            console.log(`📥 Sending answer to user ${receiverId}`);
-            
-            io.to(`user_${receiverId}`).emit("video_answer", {
-                answer,
-                senderId: socket.id
-            });
-        });
-
-        // WebRTC Signaling: Trao đổi ICE candidates
-        socket.on("ice_candidate", ({ candidate, receiverId }) => {
-            io.to(`user_${receiverId}`).emit("ice_candidate", {
-                candidate,
-                senderId: socket.id
-            });
-        });
-
-        // Kết thúc cuộc gọi
-        socket.on("end_video_call", ({ receiverId }) => {
-            console.log(`☎️ Call ended`);
-            
-            io.to(`user_${receiverId}`).emit("video_call_ended");
-        });
-
 
         // Tạo nhóm chat
         socket.on("create_group", async ({ name, members, creatorId }) => {
@@ -189,10 +134,39 @@ function initSocket(server) {
             }
         });
 
-        // Nhắn tin nhóm
-        socket.on("send_group_message", async ({ groupId, senderId, content}) => {
-            io.to(`group_${groupId}`).emit('group_message', { groupId, senderId, content });
-        })
+
+        socket.on("join_group", ({ groupId }) => {
+            socket.join(`group_${groupId}`);
+            console.log(`👤 User ${socket.id} joined group room: group_${groupId}`);
+        });
+
+        // Nhắn tin nhóm 
+        socket.on("send_group_message", async ({ groupId, senderId, content }) => {
+            console.log("🔵 Server received send_group_message:", { groupId, senderId, content });
+            try {
+                const msg = await GroupService.createMessageGroup(groupId, senderId, content);
+                const sender = await User.findByPk(senderId);
+            
+                const senderInfo = sender ? {
+                    id: sender.id,
+                    name: sender.name,
+                    email: sender.email,
+                    avatar: `https://i.pravatar.cc/50?u=${sender.id}`
+                } : null;
+                
+                io.to(`group_${groupId}`).emit("group_message", {
+                    id: msg.id,
+                    senderId: msg.senderId,
+                    content: msg.content,
+                    createdAt: msg.createdAt,
+                    senderInfo
+                });
+                console.log("✅ Message emitted successfully");
+            } catch (err) {
+                console.error("❌ Error sending group message:", err);
+                socket.emit("error", { message: "Không thể gửi tin nhắn" });
+            }
+        });
 
         socket.on("disconnect", () => {
             console.log("❌ Client disconnected");

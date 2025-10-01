@@ -1,83 +1,76 @@
 import { useState, useRef, useEffect } from "react";
 import { FiSend, FiImage, FiUsers, FiPhone, FiVideo } from "react-icons/fi";
 import { BsEmojiSmile } from "react-icons/bs";
-import Emoji from "../components/Emoji"; // nếu có component emoji riêng
+import Emoji from "../components/Emoji";
 import useGroup from "../hooks/useGroup";
 import { useParams } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { io } from "socket.io-client";
+
+const socket = io("http://192.168.1.18:3000");
 
 function GroupRoom() {
-    const [messages, setMessages] = useState([
-        { id: 1, user: "Alice", text: "Hello group 👋", isMe: false },
-        { id: 2, user: "Me", text: "Hi Alice 😁", isMe: true },
-    ]);
     const { id } = useParams();
     const [message, setMessage] = useState("");
+    const { messages, fetchMesGr, setMessages } = useGroup();
     const [emoji, setEmoji] = useState(false);
-    const [previewImage, setPreviewImage] = useState(null);
     const messagesEndRef = useRef(null);
-    const { group, fetchGroup } = useGroup()
+    const { group, fetchGroup } = useGroup();
+    const { user } = useAuth();
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }, [messages])
+    useEffect(() => {
+        if (user?.id) {
+            socket.emit("join", user.id);
+        }
+    }, [user?.id]);
 
     useEffect(() => {
-        if (id) fetchGroup(id)
-    }, [id])
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, previewImage]);
-
-    useEffect(() => {
-        if (id) fetchGroup(id);
+        fetchMesGr(id);
     }, [id]);
 
-    // Cuộn xuống cuối khi có tin nhắn mới
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+        if (id && user?.id) {
+            fetchGroup(id);
+            
+            // ✅ Join room group
+            socket.emit("join_group", { groupId: id });
+        }
+    }, [id, user?.id]);
 
-    // Lắng nghe tin nhắn từ server
+    // ✅ Lắng nghe tin nhắn nhóm
     useEffect(() => {
-        socket.on("group_message", (msg) => {
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: Date.now(),
-                    user: msg.senderId === userId ? userName : msg.senderName,
-                    text: msg.content,
-                    isMe: msg.senderId === userId,
-                },
-            ]);
+        socket.on("group_message", (data) => {
+            const newMessage = {
+                id: data.id || Date.now(),
+                sender_id: data.senderId,
+                content: data.content,
+                imageUrl: data.imageUrl || null,
+                createdAt: data.createdAt,
+            };
+            
+            setMessages(prev => [...prev, newMessage]);
         });
 
-        return () => socket.off("group_message");
-    }, []);
+        return () => {
+            socket.off("group_message");
+        };
+    }, [setMessages]);
 
-    // Gửi tin nhắn
+    // ✅ Gửi tin nhắn
     const handleSend = (e) => {
         e.preventDefault();
         if (!message.trim()) return;
-
-        // Cập nhật giao diện trước
-        setMessages((prev) => [
-            ...prev,
-            { id: Date.now(), user: userName, text: message, isMe: true },
-        ]);
-
-        // Gửi tin nhắn lên server
+        
         socket.emit("send_group_message", {
             groupId: id,
-            senderId: userId,
-            senderName: userName,
-            content: message,
+            senderId: user?.id,
+            content: message
         });
-
+        
         setMessage("");
-    };
-
-    const handleFileUpload = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const url = URL.createObjectURL(file);
-        setPreviewImage(url);
+        setEmoji(false);
     };
 
     return (
@@ -85,7 +78,9 @@ function GroupRoom() {
             <div className="flex items-center justify-between p-4 bg-white shadow-md border-b">
                 <div className="flex items-center gap-3">
                     <FiUsers className="w-6 h-6 text-blue-500" />
-                    <h2 className="font-semibold text-lg">{group.name} ({group.memberCount})</h2>
+                    <h2 className="font-semibold text-lg">
+                        {group?.name || "Nhóm"} ({group?.memberCount || 0})
+                    </h2>
                 </div>
                 <div className="flex items-center gap-4">
                     <FiPhone
@@ -100,87 +95,83 @@ function GroupRoom() {
                     />
                 </div>
             </div>
+            
             <div className="flex-1 p-4 overflow-y-auto">
-                {messages.map((msg) => (
-                    <div
-                        key={msg.id}
-                        className={`flex mb-3 ${msg.isMe ? "justify-end" : "justify-start"}`}
-                    >
-                        <div
-                            className={`max-w-xs px-3 py-2 rounded-2xl ${
-                                msg.isMe ? "bg-blue-500 text-white" : "bg-gray-200 text-black"
-                            }`}
-                        >
-                            {!msg.isMe && <p className="text-xs font-bold mb-1">{msg.user}</p>}
-                            {msg.image && (
-                                <img
-                                    src={msg.image}
-                                    alt="upload"
-                                    className="max-w-[200px] max-h-[200px] rounded-lg mb-2"
-                                />
-                            )}
-                            <p>{msg.text}</p>
+                {messages.map((msg, i) => {
+                    const isCurrentUser = msg.sender_id === user?.id;
+                    const prevMsg = i > 0 ? messages[i - 1] : null;
+                    const nextMsg = i < messages.length - 1 ? messages[i + 1] : null;
+                    const showAvatar = !isCurrentUser && (!nextMsg || nextMsg.sender_id !== msg.sender_id);
+                    const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
+                    
+                    return (
+                        <div key={i} className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+                            <div
+                                className={`flex mb-1 ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isFirstInGroup ? 'mt-2' : ''}`}
+                            >
+                                {!isCurrentUser && (
+                                    <div className="w-8 h-8 mr-2 mt-auto">
+                                        {showAvatar && (
+                                            <img
+                                                src={`https://i.pravatar.cc/50?u=${msg.sender_id}`}
+                                                alt=""
+                                                className="w-7 h-7 rounded-full object-cover"
+                                            />
+                                        )}
+                                    </div>
+                                )}
+
+                                <div
+                                    className={`max-w-xs px-3 py-2 text-sm ${
+                                        isCurrentUser
+                                            ? 'bg-blue-500 text-white rounded-2xl'
+                                            : 'bg-gray-200 text-black rounded-2xl'
+                                    }`}
+                                >
+                                    {msg.content}
+                                </div>
+                            </div>
+
                         </div>
-                    </div>
-                ))}
-                {previewImage && (
-                    <div className="flex justify-end mb-3">
-                        <div className="bg-blue-100 p-2 rounded-lg">
-                            <img
-                                src={previewImage}
-                                alt="preview"
-                                className="max-w-[200px] max-h-[200px] rounded-lg"
-                            />
-                        </div>
-                    </div>
-                )}
+                    );
+                })}
                 <div ref={messagesEndRef} />
             </div>
-            <form
-                onSubmit={handleSend}
-                className="p-3 bg-white border-t flex items-center gap-2"
-            >
-                <label
-                    htmlFor="file-upload"
-                    className="cursor-pointer text-gray-500 hover:text-blue-500"
-                >
-                    <FiImage size={22} />
+
+            <form onSubmit={handleSend} className="flex items-center p-2 border-t bg-white">
+                <label htmlFor="file-upload" className="p-2 text-gray-500 hover:text-gray-700 cursor-pointer">
+                    <FiImage size={20} />
                 </label>
                 <input
                     id="file-upload"
                     type="file"
-                    accept="image/*"
                     className="hidden"
-                    onChange={handleFileUpload}
+                    accept="image/*"
                 />
-
                 <button
                     type="button"
                     onClick={() => setEmoji(!emoji)}
-                    className="text-gray-500 hover:text-yellow-500"
+                    className="p-2 text-gray-500 hover:text-gray-700"
                 >
-                    <BsEmojiSmile size={22} />
+                    <BsEmojiSmile size={20} />
                 </button>
-
                 <input
                     type="text"
+                    placeholder="Nhập tin nhắn..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Nhập tin nhắn..."
-                    className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="flex-1 mx-2 p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
-
                 <button
                     type="submit"
                     className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 flex items-center justify-center"
                 >
-                    <FiSend size={20} />
+                    <FiSend />
                 </button>
             </form>
-
             {emoji && <Emoji onSelect={(emo) => setMessage((prev) => prev + emo)} />}
         </div>
     );
 }
 
-export default GroupRoom;
+export default GroupRoom;   
