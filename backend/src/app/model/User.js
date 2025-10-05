@@ -23,6 +23,11 @@ const User = sequelize.define("User", {
     image_url: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    is_online: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
     }
 }, {
     timestamps: true,

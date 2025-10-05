@@ -38,7 +38,8 @@ function useUser()
                     unreadCount: c.unreadCount || 0 ,
                     isGroup: c.isGroup,
                     conversationId: c.conversationId,
-                    conversationName: c.conversationName
+                    conversationName: c.conversationName,
+                    isOnline: c.isGroup ? null : Boolean(Number(c.is_online))
                 }));
                 setConversations(mapped);
                 console.log("✅ Fetch conversations thành công:", mapped);

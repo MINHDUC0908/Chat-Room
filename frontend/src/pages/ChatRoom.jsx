@@ -11,6 +11,7 @@ import useUser from "../hooks/useUser";
 import useChat from "../hooks/useChat";
 import ImageModal from "../components/Image";
 import socket from "../utils/socket";
+import src from "../api/src";
 
 function ChatRoom({ setCurrentTitle }) {
     const { id: receiverId } = useParams();
@@ -252,11 +253,11 @@ function ChatRoom({ setCurrentTitle }) {
                                 >
                                     {msg.image_url && (
                                         <img
-                                            src={`http://192.168.1.18:3000${msg.image_url}`}
+                                            src={src + `${msg.image_url}`}
                                             alt="message"
                                             className="max-w-[200px] max-h-[200px] rounded-lg mb-2 cursor-pointer"
                                             onClick={() =>
-                                                setSelectedImage(`http://192.168.1.18:3000${msg.image_url}`)
+                                                setSelectedImage(src + `${msg.image_url}`)
                                             }
                                             onLoad={() => {
                                                 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

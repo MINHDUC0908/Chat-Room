@@ -168,10 +168,26 @@ function initSocket(server) {
             }
         });
 
-        socket.on("disconnect", () => {
-            console.log("❌ Client disconnected");
-            });
+        socket.on("user_online", async (userId) => {
+            socket.userId = userId;
+
+            await User.update({ is_online: true }, { where: { id: userId } });
+            io.emit("user_status_change", { userId, isOnline: true });
         });
+        socket.on("user_offline", async (userId) => {
+            console.log("❌ User logout:", userId);
+            await User.update({ is_online: false }, { where: { id: userId } });
+            io.emit("user_status_change", { userId, isOnline: false });
+        });
+
+        socket.on("disconnect", async () => {
+            if (socket.userId) {
+                await User.update({ is_online: false }, { where: { id: socket.userId } });
+                io.emit("user_status_change", { userId: socket.userId, isOnline: false });
+                console.log("❌ User disconnected:", socket.id);
+            }
+        });
+    });
     return io;
 }
 

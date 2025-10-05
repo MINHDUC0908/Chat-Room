@@ -1,35 +1,55 @@
 // ChatItem.jsx
-function ChatItem({ conversation, isSelected, onClick, formatTime }) {
+import React from 'react';
+
+function ChatItem({ conversation, formatTime, isSelected, onClick }) {
     return (
         <div
             onClick={onClick}
-            className={`
-                flex items-center gap-2 p-2
-                cursor-pointer transition-colors duration-200 px-5 py-4
-                ${isSelected ? "bg-gray-300" : "bg-transparent"}
-            `}
+            className={`px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors ${
+                isSelected ? 'bg-blue-50 border-r-4 border-blue-500' : ''
+            }`}
         >
-            <img
-                src={conversation.avatar}
-                alt={conversation.displayName || "Nhóm hoặc người dùng"} // Sử dụng displayName
-                className="w-10 h-10 rounded-full"
-            />
-
-            <div className="flex-1">
-                <div className="font-medium">
-                    {conversation.displayName} {/* Sử dụng displayName trực tiếp */}
+            <div className="flex items-center gap-3">
+                <div className="relative">
+                    <img
+                        src={conversation.avatar}
+                        alt={conversation.displayName}
+                        className="w-12 h-12 rounded-full object-cover"
+                    />
+                    {!conversation.isGroup && (
+                        <div
+                            className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${
+                                conversation.isOnline ? 'bg-green-500' : 'bg-gray-400'
+                            }`}
+                            title={conversation.isOnline ? 'Đang online' : 'Offline'}
+                        />
+                    )}
                 </div>
-                <div
-                    className={`text-xs ${
-                        conversation.unreadCount > 0 ? "text-red-500 font-semibold" : "text-gray-500"
-                    }`}
-                >
-                    {conversation.displayMessage}
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-baseline">
+                        <h3 className="font-semibold text-sm truncate">
+                            {conversation.displayName}
+                        </h3>
+                        {conversation.lastTime && (
+                            <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                                {formatTime(conversation.lastTime)}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                        <p className={`text-xs ${
+                            conversation.unreadCount > 0 ? "text-red-500 font-semibold" : "text-gray-500"
+                            }`}
+                        >
+                            {conversation.displayMessage}
+                        </p>
+                        {conversation.unreadCount > 0 && (
+                            <span className="ml-2 bg-blue-500 text-white text-xs rounded-full px-2 py-0.5 font-semibold flex-shrink-0">
+                                {conversation.unreadCount}
+                            </span>
+                        )}
+                    </div>
                 </div>
-            </div>
-
-            <div className="ml-auto text-[11px] text-gray-400">
-                {formatTime(conversation.lastTime)}
             </div>
         </div>
     );

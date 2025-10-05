@@ -34,29 +34,30 @@ class ChatService {
         const chats = await sequelize.query(
             `
             SELECT * FROM (
-                -- Lấy nhóm
+                -- 🟢 Lấy nhóm chat
                 SELECT 
                     g.id AS conversationId,
                     g.name AS conversationName,
-                    COALESCE(MAX(m.created_at), g.created_at) AS lastTime, -- fallback nếu chưa có tin nhắn
+                    COALESCE(MAX(gm.created_at), g.created_at) AS lastTime,
                     SUBSTRING_INDEX(
-                        SUBSTRING_INDEX(GROUP_CONCAT(m.content ORDER BY m.created_at DESC), ',', 1),
+                        SUBSTRING_INDEX(GROUP_CONCAT(gm.content ORDER BY gm.created_at DESC), ',', 1),
                         ',', -1
                     ) AS lastMessage,
-                    COALESCE(SUM(CASE WHEN m.sender_id != :userId AND m.is_read = 0 THEN 1 ELSE 0 END), 0) AS unreadCount,
+                    0 AS unreadCount,
                     1 AS isGroup,
                     NULL AS id,
                     NULL AS name,
-                    NULL AS email
+                    NULL AS email,
+                    NULL AS is_online
                 FROM groups g
-                JOIN group_members gm ON gm.group_id = g.id
-                LEFT JOIN messages m ON m.group_id = g.id
-                WHERE gm.user_id = :userId
+                JOIN group_members gb ON gb.group_id = g.id
+                LEFT JOIN group_messages gm ON gm.group_id = g.id
+                WHERE gb.user_id = :userId
                 GROUP BY g.id, g.name, g.created_at
 
                 UNION ALL
 
-                -- Lấy 1-1
+                -- 🟣 Lấy hội thoại 1-1
                 SELECT 
                     NULL AS conversationId,
                     NULL AS conversationName,
@@ -69,23 +70,23 @@ class ChatService {
                     0 AS isGroup,
                     u.id,
                     u.name,
-                    u.email
-                    FROM messages m
-                    JOIN users u ON u.id = IF(m.sender_id = :userId, m.receiver_id, m.sender_id)
-                    WHERE m.sender_id = :userId OR m.receiver_id = :userId
-                    GROUP BY u.id, u.name, u.email
-                ) AS merged
+                    u.email,
+                    u.is_online
+                FROM messages m
+                JOIN users u ON u.id = IF(m.sender_id = :userId, m.receiver_id, m.sender_id)
+                WHERE m.sender_id = :userId OR m.receiver_id = :userId
+                GROUP BY u.id, u.name, u.email
+            ) AS merged
             ORDER BY lastTime DESC
             `,
             {
                 replacements: { userId },
-                type: QueryTypes.SELECT
+                type: sequelize.QueryTypes.SELECT
             }
         );
 
         return chats;
     }
-
 
     // Đánh dấu tin nhắn là đã đọc
     static async markAsRead(userId, senderId) {
