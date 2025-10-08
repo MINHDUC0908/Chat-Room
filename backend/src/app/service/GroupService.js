@@ -1,6 +1,6 @@
 const { QueryTypes, Model } = require("sequelize");
 const sequelize = require("../../config/db");
-const { Group, GroupMember, GroupMessage, User } = require("../model");
+const { Group, GroupMember, GroupMessage, User, GroupMessageRead } = require("../model");
 
 class GroupService
 {
@@ -64,14 +64,30 @@ class GroupService
     async createMessageGroup(groupId, senderId, content)
     {
         try {
-            const mes = await GroupMessage.create({
+            // 1️⃣ Tạo tin nhắn mới trong nhóm
+            const msg = await GroupMessage.create({
                 group_id: groupId,
                 sender_id: senderId,
                 content: content,
             });
-            return mes
+            // 2️⃣ Lấy danh sách tất cả thành viên trong nhóm
+            const members = await GroupMember.findAll({
+                where: { group_id: groupId }
+            });
+            // 3️⃣ Chuẩn bị dữ liệu "ai đã đọc"
+            const readData = members.map(m => ({
+                message_id: msg.id,
+                user_id: m.user_id,
+                read_at: m.user_id === senderId ? new Date() : null // Người gửi = đã đọc
+            }));
+
+            // 4️⃣ Lưu dữ liệu vào bảng group_message_reads
+            await GroupMessageRead.bulkCreate(readData);
+
+            // 5️⃣ Trả về tin nhắn (có thể emit qua socket)
+            return msg;
         } catch (error) {
-            console.error("❌ Lỗi khi lấy nhóm:", error);
+            console.error("❌ Lỗi khi tạo tin nhắn nhóm:", error);
             throw error;
         }
     }

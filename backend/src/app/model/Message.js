@@ -17,10 +17,6 @@ const Message = sequelize.define("Message", {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: true // Có thể là null nếu là tin nhắn nhóm
     },
-    group_id: {
-        type: DataTypes.BIGINT.UNSIGNED,
-        allowNull: true // Có thể là null nếu là tin nhắn cá nhân
-    },
     content: {
         type: DataTypes.TEXT,
         allowNull: true
@@ -43,6 +39,5 @@ const Message = sequelize.define("Message", {
 // Mối quan hệ
 Message.belongsTo(User, { foreignKey: "sender_id", as: "sender" });
 Message.belongsTo(User, { foreignKey: "receiver_id", as: "receiver" });
-Message.belongsTo(Group, { foreignKey: "group_id", as: "group" });
 
 module.exports = Message;

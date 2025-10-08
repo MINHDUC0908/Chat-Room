@@ -1,7 +1,7 @@
 // ChatItem.jsx
 import React from 'react';
 
-function ChatItem({ conversation, formatTime, isSelected, onClick }) {
+function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId }) {
     return (
         <div
             onClick={onClick}
@@ -39,10 +39,25 @@ function ChatItem({ conversation, formatTime, isSelected, onClick }) {
                     <div className="flex justify-between items-center mt-1">
                         <p className={`text-xs ${
                             conversation.unreadCount > 0 ? "text-red-500 font-semibold" : "text-gray-500"
-                            }`}
-                        >
-                            {conversation.displayMessage}
+                        }`}>
+                            {conversation.isGroup ? (
+                                conversation.lastSenderId === currentUserId ? (
+                                    <>Bạn: {conversation.displayMessage}</>
+                                ) : (
+                                    <>
+                                        {conversation.name}: {conversation.displayMessage}
+                                    </>
+                                )
+                            ) : (
+                                // 💬 Nếu là chat riêng
+                                conversation.lastSenderId === currentUserId ? (
+                                    <>Bạn: {conversation.displayMessage}</>
+                                ) : (
+                                    <>{conversation.displayMessage}</>
+                                )
+                            )}
                         </p>
+
                         {conversation.unreadCount > 0 && (
                             <span className="ml-2 bg-blue-500 text-white text-xs rounded-full px-2 py-0.5 font-semibold flex-shrink-0">
                                 {conversation.unreadCount}

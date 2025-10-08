@@ -43,10 +43,21 @@ class ChatService {
                         SUBSTRING_INDEX(GROUP_CONCAT(gm.content ORDER BY gm.created_at DESC), ',', 1),
                         ',', -1
                     ) AS lastMessage,
+                    (
+                        SELECT u3.id FROM users u3
+                        JOIN group_messages m ON m.sender_id = u3.id
+                        WHERE m.group_id = g.id
+                        ORDER BY m.created_at DESC LIMIT 1
+                    ) AS lastSenderId,
                     0 AS unreadCount,
                     1 AS isGroup,
                     NULL AS id,
-                    NULL AS name,
+                    (
+                        SELECT u3.name FROM users u3
+                        JOIN group_messages m ON m.sender_id = u3.id
+                        WHERE m.group_id = g.id
+                        ORDER BY m.created_at DESC LIMIT 1
+                    ) AS name,
                     NULL AS email,
                     NULL AS is_online
                 FROM groups g
@@ -66,6 +77,12 @@ class ChatService {
                         SUBSTRING_INDEX(GROUP_CONCAT(m.content ORDER BY m.created_at DESC), ',', 1),
                         ',', -1
                     ) AS lastMessage,
+                    (
+                        SELECT m2.sender_id FROM messages m2
+                        WHERE (m2.sender_id = :userId AND m2.receiver_id = u.id)
+                        OR (m2.sender_id = u.id AND m2.receiver_id = :userId)
+                        ORDER BY m2.created_at DESC LIMIT 1
+                    ) AS lastSenderId,
                     SUM(CASE WHEN m.receiver_id = :userId AND m.is_read = 0 THEN 1 ELSE 0 END) AS unreadCount,
                     0 AS isGroup,
                     u.id,

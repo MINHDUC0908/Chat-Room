@@ -3,6 +3,7 @@ import axios from "axios";
 import { useState, useContext, createContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api";
+import socket from "../utils/socket";
 
 const AuthContext = createContext();
 
@@ -54,6 +55,9 @@ export function AuthProvider({ children }) {
     };
 
     const logout = () => {
+        if (user?.id) {
+            socket.emit("user_offline", user.id); // 👈 báo offline trước
+        }
         setUser(null);
         localStorage.removeItem("token");
         navigate("/login");

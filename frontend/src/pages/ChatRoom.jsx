@@ -19,8 +19,7 @@ function ChatRoom({ setCurrentTitle }) {
     const [message, setMessage] = useState("");
     const [previewImage, setPreviewImage] = useState(null);
     const [uploadFile, setUploadFile] = useState(null);
-
-    const { receiverInfo, fetchReceiver, setConversations } = useUser(); // ✅ Thêm setConversations
+    const { receiverInfo, fetchReceiver } = useUser();
     const { chat, setChat, fetchMessages } = useChat();
     const messagesEndRef = useRef(null);
     const imageRef = useRef(null);
@@ -103,33 +102,7 @@ function ChatRoom({ setCurrentTitle }) {
                 receiver_id: parseInt(receiverId),
                 content: message,
             };
-            
-            console.log("📤 [ChatRoom] Sending message:", newMsg);
             socket.emit("private_message", newMsg);
-            
-            // ✅ Cập nhật sidebar ngay lập tức
-            setConversations((prev) => {
-                const existingIndex = prev.findIndex(
-                    (c) => (c.isGroup ? c.conversationId : c.id) === parseInt(receiverId)
-                );
-                
-                if (existingIndex !== -1) {
-                    const exists = prev[existingIndex];
-                    const updated = [...prev];
-                    updated.splice(existingIndex, 1);
-                    
-                    return [
-                        {
-                            ...exists,
-                            lastMessage: message,
-                            lastTime: new Date().toISOString(),
-                        },
-                        ...updated
-                    ];
-                }
-                return prev;
-            });
-            
             setMessage("");
             setEmoji(false)
         }
@@ -146,48 +119,19 @@ function ChatRoom({ setCurrentTitle }) {
                         "Content-Type": "multipart/form-data",
                     },
                 });
-                
                 if (res.data.success && res.data.message?.imageUrl) {
                     const imageUrl = res.data.message.imageUrl;
-                    console.log("📷 Sending image via socket:", imageUrl);
-
                     socket.emit("send_image_message", {
                         senderId: user.id,
                         receiverId: parseInt(receiverId),
                         fileUrl: imageUrl,  
                     });
-                    
-                    // ✅ Cập nhật sidebar với ảnh
-                    setConversations((prev) => {
-                        const existingIndex = prev.findIndex(
-                            (c) => (c.isGroup ? c.conversationId : c.id) === parseInt(receiverId)
-                        );
-                        
-                        if (existingIndex !== -1) {
-                            const exists = prev[existingIndex];
-                            const updated = [...prev];
-                            updated.splice(existingIndex, 1);
-                            
-                            return [
-                                {
-                                    ...exists,
-                                    lastMessage: "📷 Đã gửi ảnh",
-                                    lastTime: new Date().toISOString(),
-                                },
-                                ...updated
-                            ];
-                        }
-                        return prev;
-                    });
-
                     setPreviewImage(null);
                     setUploadFile(null);
                 } else {
-                    console.error("❌ Upload failed:", res.data);
                     alert("Upload ảnh thất bại!");
                 }
             } catch (error) {
-                console.error("❌ Lỗi upload ảnh:", error);
                 alert("Có lỗi khi upload ảnh!");
             }
         }
@@ -196,6 +140,11 @@ function ChatRoom({ setCurrentTitle }) {
     const handleSelectEmoji = (emoji) => {
         setMessage(prev => prev + emoji);
     };
+
+    // Lấy tất cả ảnh trong chat
+    const allImages = chat
+        .filter((msg) => msg.image_url)
+        .map((msg) => msg.image_url);
     
     return (
         <div className="flex flex-col h-screen">
@@ -243,39 +192,40 @@ function ChatRoom({ setCurrentTitle }) {
                                         )}
                                     </div>
                                 )}
-
                                 <div
-                                    className={`max-w-xs px-3 py-2 text-sm ${
+                                    className={`max-w-xs text-sm ${
                                         isCurrentUser
-                                            ? 'bg-blue-500 text-white rounded-2xl'
-                                            : 'bg-gray-200 text-black rounded-2xl'
+                                            ? msg.image_url
+                                                ? 'bg-blue-500 text-white rounded-2xl'  // ảnh người gửi
+                                                : 'bg-blue-500 text-white rounded-2xl px-3 py-2' // tin nhắn text người gửi
+                                            : msg.image_url
+                                                ? 'bg-gray-200 text-black rounded-2xl' // ảnh người nhận
+                                                : 'bg-gray-200 text-black rounded-2xl px-3 py-2' // tin nhắn text người nhận
                                     }`}
                                 >
-                                    {msg.image_url && (
+                                    {msg.image_url ? (
                                         <img
-                                            src={src + `${msg.image_url}`}
+                                            src={src + msg.image_url}
                                             alt="message"
-                                            className="max-w-[200px] max-h-[200px] rounded-lg mb-2 cursor-pointer"
-                                            onClick={() =>
-                                                setSelectedImage(src + `${msg.image_url}`)
-                                            }
+                                            className="max-w-[200px] max-h-[200px] rounded-lg cursor-pointer"
+                                            onClick={() => setSelectedImage(src + msg.image_url)}
                                             onLoad={() => {
-                                                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                                                messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
                                             }}
                                             onError={(e) => {
                                                 console.error("❌ Image load failed:", msg.image_url);
                                                 e.target.style.display = "none";
                                             }}
                                         />
+                                    ) : (
+                                        msg.content
                                     )}
-
-                                    {msg.content}
                                 </div>
                             </div>
                             {isLastMessage && msg.is_read && (
                                 <div className="text-xs text-gray-500 mt-1">
                                     <img
-                                        src={`https://i.pravatar.cc/30?u=${1}`}
+                                        src={`https://i.pravatar.cc/30?u=${msg.receiver_id}`}
                                         alt="Đã xem"
                                         className="w-4 h-4 rounded-full inline-block"
                                     />
@@ -355,6 +305,7 @@ function ChatRoom({ setCurrentTitle }) {
                 isOpen={!!selectedImage}
                 onClose={() => setSelectedImage(null)}
                 imageUrl={selectedImage}
+                images={allImages}
             />
         </div>
     );

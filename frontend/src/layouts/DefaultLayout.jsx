@@ -85,6 +85,7 @@ function DefaultLayout() {
         return () => {
             socket.off("private_message");
             socket.off("group_message");
+            socket.off("send_image_message");
         };
     }, [location.pathname, user?.id]);
     

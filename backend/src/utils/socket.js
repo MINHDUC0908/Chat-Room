@@ -2,7 +2,7 @@
 const { Server } = require("socket.io");
 const ChatService = require("../app/service/ChatService");
 const GroupService = require("../app/service/GroupService");
-const { User } = require("../app/model");
+const { User, Message } = require("../app/model");
 
 let io;
 
@@ -49,7 +49,6 @@ function initSocket(server) {
         // Gửi ảnh trong chat (Dùng sau khi upload thành công)
         socket.on("send_image_message", async ({ senderId, receiverId, groupId, fileUrl }) => {
             try {
-                const filename = fileUrl.split('/').pop(); // Lấy "1759157697072.png"
                 // Tạo message trong DB
                 const message = {
                     senderId: senderId,
@@ -72,11 +71,7 @@ function initSocket(server) {
                 if (receiverId) {
                     io.to(`user_${receiverId}`).emit("send_image_message", message, senderInfo);
                     io.to(`user_${senderId}`).emit("send_image_message", message);
-                } else if (groupId) {
-                    io.to(`group_${groupId}`).emit("send_image_message", message);
-                }
-
-                console.log("📷 Image message sent:", message);
+                } 
             } catch (err) {
                 console.error("❌ Error sending image message:", err);
                 socket.emit("error", { message: "Không thể gửi ảnh" });
@@ -156,15 +151,41 @@ function initSocket(server) {
                 
                 io.to(`group_${groupId}`).emit("group_message", {
                     id: msg.id,
-                    senderId: msg.senderId,
+                    senderId: parseInt(senderId),
+                    groupId: parseInt(groupId),
                     content: msg.content,
                     createdAt: msg.createdAt,
                     senderInfo
                 });
-                console.log("✅ Message emitted successfully");
+                console.log("✅ Message emitted successfully", msg);
             } catch (err) {
                 console.error("❌ Error sending group message:", err);
                 socket.emit("error", { message: "Không thể gửi tin nhắn" });
+            }
+        });
+
+        // Gửi ảnh trong nhóm (Dùng sau khi upload thành công)
+        socket.on("send_group_image", async ({ groupId, senderId, fileUrl }) => {
+            try {
+                // Tạo message trong DB 
+                const message = {
+                    senderId: senderId,
+                    groupId: groupId || null,
+                    imageUrl: fileUrl,
+                    createdAt: new Date(),
+                }
+                const sender = await User.findByPk(senderId);
+                const senderInfo = sender ? {
+                    id: sender.id,
+                    name: sender.name,
+                    email: sender.email,
+                    avatar: `https://i.pravatar.cc/50?u=${sender.id}`
+                } : null;
+                // Gửi socket cho group
+                io.to(`group_${groupId}`).emit("send_group_image", message, senderInfo);
+            } catch (err) {
+                console.error("❌ Error sending group image:", err);
+                socket.emit("error", { message: "Không thể gửi ảnh" });
             }
         });
 

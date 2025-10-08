@@ -18,6 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static("public")); 
 app.use("/image/message", express.static(path.join(__dirname, "public/image/message")));
+app.use("/image/group", express.static(path.join(__dirname, "public/image/group")));
 // 4️⃣ Kết nối Database
 sequelize.sync({ force: false }) // force: false để tránh mất dữ liệu
     .then(() => console.log("✅ Bảng đã được đồng bộ với MySQL"))

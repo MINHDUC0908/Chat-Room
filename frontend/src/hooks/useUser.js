@@ -34,12 +34,13 @@ function useUser()
                     email: c.email,
                     avatar: `https://i.pravatar.cc/50?u=${c.id ? c.id : c.conversationId}`,
                     lastMessage: c.lastMessage,
+                    lastSenderId: c.lastSenderId,
                     lastTime: c.lastTime,
                     unreadCount: c.unreadCount || 0 ,
                     isGroup: c.isGroup,
                     conversationId: c.conversationId,
                     conversationName: c.conversationName,
-                    isOnline: c.isGroup ? null : Boolean(Number(c.is_online))
+                    isOnline: c.isGroup ? null : Boolean(Number(c.is_online)),
                 }));
                 setConversations(mapped);
                 console.log("✅ Fetch conversations thành công:", mapped);

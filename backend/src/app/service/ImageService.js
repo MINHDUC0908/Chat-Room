@@ -24,7 +24,7 @@ class ImageService {
                 sender_id: senderId,
                 receiver_id: receiverId,
                 group_id: groupId,
-                content: null,
+                content: "📷 Đã gửi 1 ảnh",
                 image_url: imageUrl,
                 is_read: false
             });

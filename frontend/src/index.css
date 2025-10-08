@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Ẩn thanh cuộn nhưng vẫn cho phép cuộn */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none; /* Cho IE và Edge */
+  scrollbar-width: none; /* Cho Firefox */
+}
+
+/* Cuộn mượt */
+.scroll-smooth {
+  scroll-behavior: smooth;
+}

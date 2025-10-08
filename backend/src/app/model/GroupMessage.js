@@ -19,7 +19,11 @@ const GroupMessage = sequelize.define("GroupMessage", {
     },
     content: {
         type: DataTypes.TEXT,
-        allowNull: false
+        allowNull: true,
+    },
+    image_url: {
+        type: DataTypes.STRING,
+        allowNull: true,
     }
 }, {
     tableName: "group_messages",
@@ -29,7 +33,7 @@ const GroupMessage = sequelize.define("GroupMessage", {
 });
 
 // Mối quan hệ
-GroupMessage.belongsTo(Group, { foreignKey: "group_id", as: "group" });
-GroupMessage.belongsTo(User, { foreignKey: "sender_id", as: "sender" });
+GroupMessage.belongsTo(Group, { foreignKey: "group_id", as: "group", onDelete: "CASCADE", onUpdate: "CASCADE" });
+GroupMessage.belongsTo(User, { foreignKey: "sender_id", as: "sender", onDelete: "CASCADE", onUpdate: "CASCADE" });
 
 module.exports = GroupMessage;

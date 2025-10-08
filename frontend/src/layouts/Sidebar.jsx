@@ -9,7 +9,7 @@ import Group from "../components/Group";
 import useUser from "../hooks/useUser";
 import ChatItem from "../components/ChatList";
 
-const socket = io("http://192.168.1.77:3000");
+const socket = io("http://192.168.1.20:3000");
 
 function SideBar() {
     const { user, logout } = useAuth();
@@ -21,12 +21,38 @@ function SideBar() {
     const { conversations, fetchConversations, setConversations } = useUser();
 
     useEffect(() => {
-        fetchConversations();
+        const initializeSocket = async () => {
+            await fetchConversations();
+            
+            if (user?.id) {
+                socket.emit("user_online", user.id);
+                socket.emit("join", user.id);
+            }
+        };
         
-        if (user?.id) {
-            socket.emit("user_online", user.id);
-            socket.emit("join", user.id);
+        initializeSocket();
+    }, [user?.id]);
+
+    // Join vào tất cả các nhóm sau khi conversations được load
+    useEffect(() => {
+        if (conversations.length > 0 && user?.id) {
+            conversations.forEach((conv) => {
+                if (conv.isGroup === 1 || conv.isGroup === true) {
+                    const groupId = conv.conversationId || conv.id || conv.chatId;
+                    socket.emit("join_group", { groupId });
+                }
+            });
         }
+    }, [conversations.length, user?.id]);
+
+    // Join vào nhóm hiện tại khi chuyển trang
+    useEffect(() => {
+        if (currentChatId && location.pathname.startsWith("/group-room")) {
+            socket.emit("join_group", { groupId: currentChatId });
+        }
+    }, [currentChatId, location.pathname]);
+
+    useEffect(() => {
 
         socket.on("user_status_change", ({ userId, isOnline }) => {
             setConversations((prev) =>
@@ -38,6 +64,121 @@ function SideBar() {
                 })
             );
         });
+        socket.on("send_image_message", (msg, senderInfo) => {
+            const otherUserId = parseInt(
+                msg.senderId === user?.id ? msg.receiverId : msg.senderId
+            );
+            const isMyMessage = msg.senderId === user?.id;
+
+            setConversations((prev) => {
+                const existingIndex = prev.findIndex((c) => {
+                    if (c.isGroup === 1 || c.isGroup === true) return false;
+                    const convId = parseInt(c.id);
+                    return convId === otherUserId;
+                });
+
+                if (existingIndex !== -1) {
+                    const exists = prev[existingIndex];
+                    const updated = [...prev];
+                    updated.splice(existingIndex, 1);
+                    const newConv = {
+                        ...exists,
+                        lastMessage: "📷 Đã gửi 1 ảnh",
+                        lastTime: msg.createdAt || new Date().toISOString(),
+                        lastSenderId: msg.senderId,
+                        unreadCount: isMyMessage
+                            ? exists.unreadCount
+                            : (parseInt(exists.unreadCount) || 0) + 1,
+                    };
+
+                    return [newConv, ...updated];
+                } else if (senderInfo) {
+                    // Tạo conversation mới nếu chưa tồn tại
+                    const newConv = {
+                        id: senderInfo.id,
+                        name: senderInfo.name,
+                        email: senderInfo.email,
+                        avatar: senderInfo.avatar || `https://i.pravatar.cc/50?u=${senderInfo.id}`,
+                        lastMessage: "📷 Đã gửi 1 ảnh",
+                        lastTime: msg.createdAt || new Date().toISOString(),
+                        unreadCount: isMyMessage ? 0 : 1,
+                        isGroup: 0,
+                        isOnline: Boolean(senderInfo.is_online),
+                        lastSenderId: msg.senderId,
+                    };
+                    return [newConv, ...prev];
+                }
+                return prev;
+            });
+        });
+
+
+        // Cập nhật handler cho group_message
+        socket.on("group_message", (data) => {
+            setConversations((prev) => {
+                const existingIndex = prev.findIndex((c) => {
+                    // Kiểm tra isGroup === 1 hoặc isGroup === true
+                    const isGroupConv = c.isGroup === 1 || c.isGroup === true;
+                    if (!isGroupConv) return false;
+                    // So sánh với groupId từ data
+                    const groupId = parseInt(c.conversationId || c.id || c.chatId);
+                    return groupId === parseInt(data.groupId);
+                });
+                
+                if (existingIndex !== -1) {
+                    const exists = prev[existingIndex];
+                    const updated = [...prev];
+                    updated.splice(existingIndex, 1);
+
+                    // Tạo conversation mới với thông tin cập nhật
+                    const updatedConv = {
+                        ...exists,
+                        lastMessage: data.content,
+                        lastTime: data.createdAt || new Date().toISOString(),
+                        lastSenderId: data.senderId,
+                    };
+
+                    // Đưa conversation lên đầu danh sách
+                    return [updatedConv, ...updated];
+                } else {
+                    console.warn("⚠️ Group not found in conversations:", data.groupId);
+                }
+                return prev;
+            });
+        });
+        socket.on("send_group_image", (msg, senderInfo) => {
+            console.log("🔵 Received send_group_image:", msg, senderInfo);
+            setConversations((prev) => {
+                const existingIndex = prev.findIndex((c) => {
+                    // Kiểm tra isGroup === 1 hoặc isGroup === true
+                    const isGroupConv = c.isGroup === 1 || c.isGroup === true;
+                    if (!isGroupConv) return false;
+                    // So sánh với groupId từ data
+                    const groupId = parseInt(c.conversationId || c.id || c.chatId);
+                    return groupId === parseInt(msg.groupId);
+                });
+                
+                if (existingIndex !== -1) {
+                    const exists = prev[existingIndex];
+                    const updated = [...prev];
+                    updated.splice(existingIndex, 1);
+
+                    // Tạo conversation mới với thông tin cập nhật
+                    const updatedConv = {
+                        ...exists,
+                        lastMessage: "📷 Đã gửi 1 ảnh",
+                        lastTime: msg.createdAt || new Date().toISOString(),
+                        lastSenderId: msg.senderId,
+                    };
+
+                    // Đưa conversation lên đầu danh sách
+                    return [updatedConv, ...updated];
+                } else {
+                    console.warn("⚠️ Group not found in conversations:", msg.groupId);
+                }
+                return prev;
+            });
+        })
 
         socket.on("private_message", (msg, senderInfo) => {
             const otherUserId = parseInt(
@@ -47,7 +188,10 @@ function SideBar() {
 
             setConversations((prev) => {
                 const existingIndex = prev.findIndex((c) => {
-                    const convId = parseInt(c.isGroup ? c.conversationId : c.id);
+                    // Chỉ tìm trong chat 1-1, không phải nhóm
+                    if (c.isGroup === 1 || c.isGroup === true) return false;
+                    
+                    const convId = parseInt(c.id);
                     return convId === otherUserId;
                 });
 
@@ -60,9 +204,10 @@ function SideBar() {
                         ...exists,
                         lastMessage: msg.content,
                         lastTime: msg.created_at || new Date().toISOString(),
+                        lastSenderId: msg.sender_id,
                         unreadCount: isMyMessage
                             ? exists.unreadCount
-                            : (exists.unreadCount || 0) + 1,
+                            : (parseInt(exists.unreadCount) || 0) + 1,
                     };
 
                     return [newConv, ...updated];
@@ -79,6 +224,7 @@ function SideBar() {
                         unreadCount: isMyMessage ? 0 : 1,
                         isGroup: 0,
                         isOnline: Boolean(senderInfo.is_online),
+                        lastSenderId: msg.sender_id,
                     };
                     return [newConv, ...prev];
                 }
@@ -87,6 +233,8 @@ function SideBar() {
         });
 
         socket.on("group_created", (newGroup) => {
+            console.log("🎉 Group created event received:", newGroup);
+            
             const normalizedGroup = {
                 ...newGroup,
                 chatId: newGroup.id,
@@ -98,33 +246,39 @@ function SideBar() {
                 unreadCount: 0,
                 isGroup: 1,
             };
+            
             setConversations((prev) => [normalizedGroup, ...prev]);
+            
+            // Tự động join vào nhóm vừa tạo
+            socket.emit("join_group", { groupId: newGroup.id });
+            console.log(`🔗 Auto-joined newly created group: ${newGroup.id}`);
         });
 
         return () => {
             socket.off("user_status_change");
             socket.off("private_message");
             socket.off("group_created");
+            socket.off("group_message");
+            socket.off("send_image_message");
+            socket.off("send_group_image");
         };
-    }, [user?.id]);
+    }, [user?.id, currentChatId, location.pathname]);
 
     const normalizedConversations = conversations.map((c) => ({
         ...c,
         chatId: c.isGroup ? c.conversationId : c.id,
-        displayName: c.isGroup
-            ? c.conversationName || "Nhóm không tên"
-            : c.name || "Người dùng không tên",
-        displayMessage: c.lastMessage || c.email || "Chưa có tin nhắn",
-        avatar:
-            c.avatar ||
-            (c.isGroup
-                ? "/group-icon.png"
-                : `https://i.pravatar.cc/50?u=${c.id || c.conversationId}`),
+        displayName: c.isGroup ? c.conversationName || "Nhóm không tên" : c.name || "Người dùng không tên",
+        displayMessage: c.lastMessage || "Chưa có tin nhắn",
+        avatar: c.avatar || (c.isGroup ? "/group-icon.png" : `https://i.pravatar.cc/50?u=${c.id || c.conversationId}`),
+        lastSenderId: c.lastSenderId,
         isOnline: c.isGroup
             ? null
             : "isOnline" in c
             ? c.isOnline
             : Boolean(Number(c.is_online)),
+        // Chỉ hiển thị unreadCount cho tin nhắn cá nhân, không cho nhóm
+        unreadCount: c.isGroup ? 0   : c.unreadCount,
+        name: c.name,
     }));
 
     const filteredConversations = normalizedConversations.filter((conv) =>
@@ -196,6 +350,7 @@ function SideBar() {
                             }
                             handleMarkAsRead(c.chatId);
                         }}
+                        currentUserId={user?.id}
                     />
                 ))}
             </div>
