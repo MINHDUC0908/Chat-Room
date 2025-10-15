@@ -9,7 +9,7 @@ import Group from "../components/Group";
 import useUser from "../hooks/useUser";
 import ChatItem from "../components/ChatList";
 
-const socket = io("http://192.168.1.20:3000");
+const socket = io("http://192.168.1.11:3000");
 
 function SideBar() {
     const { user, logout } = useAuth();
@@ -54,16 +54,21 @@ function SideBar() {
 
     useEffect(() => {
 
-        socket.on("user_status_change", ({ userId, isOnline }) => {
+        socket.on("user_status_change", ({ userId, isOnline, lastActive }) => {
             setConversations((prev) =>
                 prev.map((conv) => {
                     if (!conv.isGroup && parseInt(conv.id) === parseInt(userId)) {
-                        return { ...conv, isOnline: isOnline };
+                        return { 
+                            ...conv, 
+                            isOnline, 
+                            lastActive: lastActive ? new Date(lastActive) : conv.lastActive 
+                        };
                     }
-                    return conv;
+                    return conv;    
                 })
             );
         });
+
         socket.on("send_image_message", (msg, senderInfo) => {
             const otherUserId = parseInt(
                 msg.senderId === user?.id ? msg.receiverId : msg.senderId
@@ -279,6 +284,7 @@ function SideBar() {
         // Chỉ hiển thị unreadCount cho tin nhắn cá nhân, không cho nhóm
         unreadCount: c.isGroup ? 0   : c.unreadCount,
         name: c.name,
+        lastActive: c.lastActive ? new Date(c.lastActive) : null
     }));
 
     const filteredConversations = normalizedConversations.filter((conv) =>

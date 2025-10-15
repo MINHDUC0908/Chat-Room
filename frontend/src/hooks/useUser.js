@@ -41,6 +41,7 @@ function useUser()
                     conversationId: c.conversationId,
                     conversationName: c.conversationName,
                     isOnline: c.isGroup ? null : Boolean(Number(c.is_online)),
+                    lastActive: c.last_active ? new Date(c.last_active) : null
                 }));
                 setConversations(mapped);
                 console.log("✅ Fetch conversations thành công:", mapped);

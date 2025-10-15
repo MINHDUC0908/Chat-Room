@@ -78,6 +78,38 @@ function initSocket(server) {
             }
         });
 
+        // Gửi video thành công
+        socket.on("send_video_message", async ({ senderId, receiverId, fileUrl, videoName, videoSize, duration }) => {
+            try {
+                const message = {
+                    senderId: senderId,
+                    receiverId: receiverId || null,
+                    videoUrl: fileUrl,
+                    createdAt: new Date(),
+                    videoName: videoName,
+                    videoSize: videoSize,
+                    duration: duration,
+                    isRead: false
+                }
+
+                const sender = await User.findByPk(senderId);
+                const senderInfo = sender ? {
+                    id: sender.id,
+                    name: sender.name,
+                    email: sender.email,
+                    avatar: `https://i.pravatar.cc/50?u=${sender.id}`
+                } : null;
+                // Gửi socket cho người nhận
+                if (receiverId) {
+                    io.to(`user_${receiverId}`).emit("send_video_message", message, senderInfo);
+                    io.to(`user_${senderId}`).emit("send_video_message", message);
+                } 
+            } catch (error) {
+                console.error("❌ Error sending video message:", err);
+                socket.emit("error", { message: "Không thể gửi video" });
+            }
+        });
+
 
         // Đánh dấu tin nhắn là đã đọc
         socket.on("mark_as_read", async ({ userId, senderId }) => {
@@ -90,6 +122,7 @@ function initSocket(server) {
                     readerId: userId,
                     senderId
                 });
+                console.log(`📬 Notified user_${senderId} that messages were read by ${userId}`);
             } catch (err) {
                 console.error("❌ Error marking messages as read:", err);
             }
@@ -197,15 +230,32 @@ function initSocket(server) {
         });
         socket.on("user_offline", async (userId) => {
             console.log("❌ User logout:", userId);
-            await User.update({ is_online: false }, { where: { id: userId } });
-            io.emit("user_status_change", { userId, isOnline: false });
+            await User.update(
+                { 
+                    is_online: false, last_active: new Date() 
+                }, 
+                { 
+                    where: 
+                    { 
+                        id: userId 
+                    } 
+                });
+            io.emit("user_status_change", { userId, isOnline: false, lastActive: new Date() });
         });
 
         socket.on("disconnect", async () => {
             if (socket.userId) {
-                await User.update({ is_online: false }, { where: { id: socket.userId } });
-                io.emit("user_status_change", { userId: socket.userId, isOnline: false });
-                console.log("❌ User disconnected:", socket.id);
+                const now = new Date();
+                await User.update(
+                    { is_online: false, last_active: now },
+                    { where: { id: socket.userId } }
+                );
+                io.emit("user_status_change", {
+                    userId: socket.userId,
+                    isOnline: false,
+                    lastActive: now,
+                });
+                console.log("❌ User disconnected:", socket.userId);
             }
         });
     });

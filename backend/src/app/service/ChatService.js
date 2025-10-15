@@ -59,7 +59,8 @@ class ChatService {
                         ORDER BY m.created_at DESC LIMIT 1
                     ) AS name,
                     NULL AS email,
-                    NULL AS is_online
+                    NULL AS is_online,
+                    NULL AS last_active
                 FROM groups g
                 JOIN group_members gb ON gb.group_id = g.id
                 LEFT JOIN group_messages gm ON gm.group_id = g.id
@@ -88,7 +89,8 @@ class ChatService {
                     u.id,
                     u.name,
                     u.email,
-                    u.is_online
+                    u.is_online,
+                    u.last_active
                 FROM messages m
                 JOIN users u ON u.id = IF(m.sender_id = :userId, m.receiver_id, m.sender_id)
                 WHERE m.sender_id = :userId OR m.receiver_id = :userId

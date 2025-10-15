@@ -12,7 +12,7 @@ import axios from "axios";
 import api from "../api/api";
 import ImageModal from "../components/Image";
 
-const socket = io("http://192.168.1.20:3000");
+const socket = io("http://192.168.1.11:3000");
 
 function GroupRoom() {
     const { id } = useParams();

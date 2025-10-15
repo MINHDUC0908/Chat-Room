@@ -1,5 +1,6 @@
 // ChatItem.jsx
 import React from 'react';
+import { formatLastActive } from '../utils/format';
 
 function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId }) {
     return (
@@ -25,21 +26,34 @@ function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId
                         />
                     )}
                 </div>
+
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
-                        <h3 className="font-semibold text-sm truncate">
-                            {conversation.displayName}
-                        </h3>
+                        <div className="flex flex-col">
+                            <h3 className="font-semibold text-sm truncate">
+                                {conversation.displayName}
+                            </h3>
+                            {/* {!conversation.isGroup && !conversation.isOnline && conversation.lastActive && (
+                                <span className="text-xs text-gray-500 mt-0.5">
+                                    Hoạt động {formatLastActive(conversation.lastActive)}
+                                </span>
+                            )} */}
+                        </div>
                         {conversation.lastTime && (
                             <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
                                 {formatTime(conversation.lastTime)}
                             </span>
                         )}
                     </div>
+                    {/* Tin nhắn gần nhất */}
                     <div className="flex justify-between items-center mt-1">
-                        <p className={`text-xs ${
-                            conversation.unreadCount > 0 ? "text-red-500 font-semibold" : "text-gray-500"
-                        }`}>
+                        <p
+                            className={`text-xs ${
+                                conversation.unreadCount > 0
+                                    ? 'text-red-500 font-semibold'
+                                    : 'text-gray-500'
+                            }`}
+                        >
                             {conversation.isGroup ? (
                                 conversation.lastSenderId === currentUserId ? (
                                     <>Bạn: {conversation.displayMessage}</>
@@ -48,13 +62,10 @@ function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId
                                         {conversation.name}: {conversation.displayMessage}
                                     </>
                                 )
+                            ) : conversation.lastSenderId === currentUserId ? (
+                                <>Bạn: {conversation.displayMessage}</>
                             ) : (
-                                // 💬 Nếu là chat riêng
-                                conversation.lastSenderId === currentUserId ? (
-                                    <>Bạn: {conversation.displayMessage}</>
-                                ) : (
-                                    <>{conversation.displayMessage}</>
-                                )
+                                <>{conversation.displayMessage}</>
                             )}
                         </p>
 

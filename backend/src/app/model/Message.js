@@ -4,7 +4,7 @@ const User = require("./User");
 const Group = require("./Group");
 
 const Message = sequelize.define("Message", {
-    id: { // Thêm cột id làm khóa chính
+    id: {
         type: DataTypes.BIGINT.UNSIGNED,
         primaryKey: true,
         autoIncrement: true
@@ -15,7 +15,7 @@ const Message = sequelize.define("Message", {
     },
     receiver_id: {
         type: DataTypes.BIGINT.UNSIGNED,
-        allowNull: true // Có thể là null nếu là tin nhắn nhóm
+        allowNull: true
     },
     content: {
         type: DataTypes.TEXT,
@@ -24,6 +24,26 @@ const Message = sequelize.define("Message", {
     image_url: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    video_url: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    video_public_id: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    video_name: {
+        type: DataTypes.STRING(255),
+        allowNull: true 
+    },
+    video_size: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    video_duration: {
+        type: DataTypes.STRING(20),
+        allowNull: true 
     },
     is_read: {
         type: DataTypes.BOOLEAN,
