@@ -26,6 +26,17 @@ class ChatController
 
         }
     }
+
+    async deleteMessage(req, res)
+    {
+        try {
+            const messageId = req.params.messageId;
+            await ChatService.deleteMessage(messageId);
+            res.json({ message: "Xóa tin nhắn thành công" });
+        } catch (error) {
+            res.status(500).json({ message: "Lỗi server", error: error.message });
+        }
+    }
 }
 
 module.exports = new ChatController();

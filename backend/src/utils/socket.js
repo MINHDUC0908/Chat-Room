@@ -46,11 +46,25 @@ function initSocket(server) {
                 console.error("❌ Error saving message:", err);
             }
         });
+
+        socket.on("delete_message", async ({ messageId, userId, receiverId }) => {
+            try {
+                const message = await ChatService.deleteMessage(messageId);
+                if (message) {
+                    // 📤 Gửi lại cho người gửi và người nhận để cập nhật UI
+                    io.to(`user_${userId}`).emit("delete_message", { messageId });
+                    io.to(`user_${receiverId}`).emit("delete_message", { messageId });
+                }
+            } catch (error) {
+                console.error("❌ Error deleting message:", error);
+            }
+        })
         // Gửi ảnh trong chat (Dùng sau khi upload thành công)
-        socket.on("send_image_message", async ({ senderId, receiverId, groupId, fileUrl }) => {
+        socket.on("send_image_message", async ({ id, senderId, receiverId, groupId, fileUrl }) => {
             try {
                 // Tạo message trong DB
                 const message = {
+                    id: id,
                     senderId: senderId,
                     receiverId: receiverId || null,
                     groupId: groupId || null,
@@ -79,9 +93,10 @@ function initSocket(server) {
         });
 
         // Gửi video thành công
-        socket.on("send_video_message", async ({ senderId, receiverId, fileUrl, videoName, videoSize, duration }) => {
+        socket.on("send_video_message", async ({ id, senderId, receiverId, fileUrl, videoName, videoSize, duration }) => {
             try {
                 const message = {
+                    id: id,
                     senderId: senderId,
                     receiverId: receiverId || null,
                     videoUrl: fileUrl,
@@ -241,6 +256,46 @@ function initSocket(server) {
                     } 
                 });
             io.emit("user_status_change", { userId, isOnline: false, lastActive: new Date() });
+        });
+
+
+
+
+        // 📞 Nhận tín hiệu gọi
+        socket.on("call-user", ({ senderId, receiverId, offer }) => {
+            console.log(`📞 Call from user ${senderId} to user ${receiverId}`);
+            // Gửi tới room của người nhận
+            io.to(`user_${receiverId}`).emit("incoming-call", { 
+                from: senderId, 
+                offer: offer 
+            });
+        });
+
+        // ✅ Gửi lại answer
+        socket.on("answer-call", ({ senderId, receiverId, answer }) => {
+            console.log(`✅ User ${receiverId} answered call from ${senderId}`);
+            // Gửi answer về cho người gọi
+            io.to(`user_${senderId}`).emit("call-answered", { 
+                from: receiverId, 
+                answer: answer 
+            });
+        });
+
+        // 🧊 Gửi ICE candidate
+        socket.on("ice-candidate", ({ senderId, receiverId, candidate }) => {
+            console.log(`🧊 ICE candidate from ${senderId} to ${receiverId}`);
+            // Gửi ICE candidate cho đối phương
+            io.to(`user_${receiverId}`).emit("ice-candidate", { 
+                from: senderId,
+                candidate: candidate 
+            });
+        });
+
+        // 📴 Ngắt cuộc gọi
+        socket.on("end-call", ({ senderId, receiverId }) => {
+            console.log(`📴 Call ended between ${senderId} and ${receiverId}`);
+            io.to(`user_${receiverId}`).emit("call-ended", { from: senderId });
+            io.to(`user_${senderId}`).emit("call-ended", { from: receiverId });
         });
 
         socket.on("disconnect", async () => {

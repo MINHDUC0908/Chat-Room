@@ -1,6 +1,4 @@
-// ChatItem.jsx
-import React from 'react';
-import { formatLastActive } from '../utils/format';
+
 
 function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId }) {
     return (
@@ -54,7 +52,10 @@ function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId
                                     : 'text-gray-500'
                             }`}
                         >
-                            {conversation.isGroup ? (
+                            {conversation.displayMessage === "Chưa có tin nhắn" ? (
+                                // 👉 Nếu chưa có tin nhắn, chỉ hiển thị "Chưa có tin nhắn"
+                                <>Chưa có tin nhắn</>
+                            ) : conversation.isGroup ? (
                                 conversation.lastSenderId === currentUserId ? (
                                     <>Bạn: {conversation.displayMessage}</>
                                 ) : (
@@ -68,7 +69,6 @@ function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId
                                 <>{conversation.displayMessage}</>
                             )}
                         </p>
-
                         {conversation.unreadCount > 0 && (
                             <span className="ml-2 bg-blue-500 text-white text-xs rounded-full px-2 py-0.5 font-semibold flex-shrink-0">
                                 {conversation.unreadCount}

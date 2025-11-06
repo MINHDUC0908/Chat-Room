@@ -12,7 +12,7 @@ import axios from "axios";
 import api from "../api/api";
 import ImageModal from "../components/Image";
 
-const socket = io("http://192.168.1.11:3000");
+const socket = io("http://192.168.1.15:3000");
 
 function GroupRoom() {
     const { id } = useParams();
@@ -25,9 +25,11 @@ function GroupRoom() {
     const [previewImage, setPreviewImage] = useState(null);
     const [selectedImage, setSelectedImage] = useState(null);
     const [uploadFile, setUploadFile] = useState(null);
+    
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     }, [messages])
+    
     useEffect(() => {
         if (user?.id) {
             socket.emit("join", user.id);
@@ -46,42 +48,56 @@ function GroupRoom() {
         }
     }, [id, user?.id]);
 
-    // ✅ Lắng nghe tin nhắn nhóm
+    // ✅ Lắng nghe tin nhắn nhóm - ĐÃ SỬA: Kiểm tra groupId
     useEffect(() => {
         socket.on("group_message", (data) => {
+            // ✅ QUAN TRỌNG: Chỉ thêm tin nhắn nếu thuộc nhóm hiện tại
+            if (parseInt(data.groupId) !== parseInt(id)) {
+                console.log(`⏭️ Skipping message from group ${data.groupId}, current group is ${id}`);
+                return;
+            }
+
+            console.log(`✅ Adding message to group ${id}:`, data);
+            
             const newMessage = {
                 id: data.id || Date.now(),
                 sender_id: data.senderId,
                 content: data.content,
                 imageUrl: data.imageUrl || null,
                 createdAt: data.createdAt,
+                sender: data.senderInfo || null, // Lưu thông tin sender để hiển thị tên
             };
             
             setMessages(prev => [...prev, newMessage]);
         });
 
         socket.on("send_group_image", (data) => {
-            if (parseInt(data.groupId) === parseInt(id)) {
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        id: Date.now(),
-                        sender_id: data.senderId,
-                        content: null,
-                        image_url: data.imageUrl || data.fileUrl,
-                        createdAt: new Date().toISOString(),
-                    },
-                ]);
+            // ✅ QUAN TRỌNG: Kiểm tra groupId cho ảnh
+            if (parseInt(data.groupId) !== parseInt(id)) {
+                console.log(`⏭️ Skipping image from group ${data.groupId}, current group is ${id}`);
+                return;
             }
+
+            console.log(`✅ Adding image to group ${id}:`, data);
+
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: Date.now(),
+                    sender_id: data.senderId,
+                    content: null,
+                    image_url: data.imageUrl || data.fileUrl,
+                    createdAt: new Date().toISOString(),
+                },
+            ]);
         });
 
         return () => {
             socket.off("group_message");
             socket.off("send_group_image");
         };
-    }, [setMessages]);
+    }, [setMessages, id]); // ✅ Thêm 'id' vào dependencies
 
-    // ✅ Lắng nghe sự kiện gửi ảnh (xác nhận gửi thành công)
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -132,13 +148,14 @@ function GroupRoom() {
                 console.error("Upload error:", error);
                 alert("Có lỗi khi upload ảnh!");
             }
-
         }
     };
+    
     // Lấy tất cả ảnh trong chat
     const allImages = messages
         .filter((msg) => msg.image_url)
         .map((msg) => msg.image_url);
+        
     return (
         <div className="flex flex-col h-screen bg-gray-100">
             <div className="flex items-center justify-between p-4 bg-white shadow-md border-b">
@@ -196,11 +213,11 @@ function GroupRoom() {
                                         className={`max-w-xs text-sm ${
                                             isCurrentUser
                                                 ? msg.image_url
-                                                    ? 'bg-blue-500 text-white rounded-2xl' // ảnh người gửi
-                                                    : 'bg-blue-500 text-white rounded-2xl px-3 py-2' // text người gửi
+                                                    ? 'bg-blue-500 text-white rounded-2xl'
+                                                    : 'bg-blue-500 text-white rounded-2xl px-3 py-2'
                                                 : msg.image_url
-                                                    ? 'bg-gray-200 text-black rounded-2xl' // ảnh người nhận
-                                                    : 'bg-gray-200 text-black rounded-2xl px-3 py-2' // text người nhận
+                                                    ? 'bg-gray-200 text-black rounded-2xl'
+                                                    : 'bg-gray-200 text-black rounded-2xl px-3 py-2'
                                         }`}
                                     >
                                         {msg.image_url ? (
@@ -295,4 +312,4 @@ function GroupRoom() {
     );
 }
 
-export default GroupRoom;   
+export default GroupRoom;

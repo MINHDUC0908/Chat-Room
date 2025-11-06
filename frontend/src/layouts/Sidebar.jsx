@@ -9,7 +9,7 @@ import Group from "../components/Group";
 import useUser from "../hooks/useUser";
 import ChatItem from "../components/ChatList";
 
-const socket = io("http://192.168.1.11:3000");
+const socket = io("http://192.168.1.15:3000");
 
 function SideBar() {
     const { user, logout } = useAuth();
@@ -120,6 +120,7 @@ function SideBar() {
 
         // Cập nhật handler cho group_message
         socket.on("group_message", (data) => {
+            console.log("🔵 Received group_message:", data);
             setConversations((prev) => {
                 const existingIndex = prev.findIndex((c) => {
                     // Kiểm tra isGroup === 1 hoặc isGroup === true
@@ -180,6 +181,60 @@ function SideBar() {
                     return [updatedConv, ...updated];
                 } else {
                     console.warn("⚠️ Group not found in conversations:", msg.groupId);
+                }
+                return prev;
+            });
+        })
+
+
+        socket.on("send_video_message", (msg, senderInfo) => 
+        {
+            console.log("🔵 Received send_video_message:", msg, senderInfo);
+            const otherUserId = parseInt(
+                msg.senderId === user?.id ? msg.receiverId : msg.senderId
+            );
+            const isMyMessage = msg.senderId === user?.id;
+
+            setConversations((prev) => {
+                const existingIndex = prev.findIndex((c) => {
+                    // Chỉ tìm trong chat 1-1, không phải nhóm
+                    if (c.isGroup === 1 || c.isGroup === true) return false;
+                    
+                    const convId = parseInt(c.id);
+                    return convId === otherUserId;
+                });
+
+                if (existingIndex !== -1) {
+                    const exists = prev[existingIndex];
+                    const updated = [...prev];
+                    updated.splice(existingIndex, 1);
+
+                    const newConv = {
+                        ...exists,
+                        lastMessage: "📷 Đã gửi 1 video",
+                        lastSenderId: msg.senderId,
+                        unreadCount: isMyMessage
+                            ? exists.unreadCount
+                            : (parseInt(exists.unreadCount) || 0) + 1,
+                    };
+
+                    return [newConv, ...updated];
+                } else if (senderInfo) {
+                    const newConv = {
+                        id: senderInfo.id,
+                        name: senderInfo.name,
+                        email: senderInfo.email,
+                        avatar:
+                            senderInfo.avatar ||
+                            `https://i.pravatar.cc/50?u=${senderInfo.id}`,
+                        lastMessage: msg.content,
+                        lastTime: msg.created_at || new Date().toISOString(),
+                        unreadCount: isMyMessage ? 0 : 1,
+                        isGroup: 0,
+                        isOnline: Boolean(senderInfo.is_online),
+                        lastSenderId: msg.senderId,
+                    };
+                    return [newConv, ...prev];
                 }
                 return prev;
             });
@@ -266,6 +321,7 @@ function SideBar() {
             socket.off("group_message");
             socket.off("send_image_message");
             socket.off("send_group_image");
+            socket.off("send_video_message")
         };
     }, [user?.id, currentChatId, location.pathname]);
 

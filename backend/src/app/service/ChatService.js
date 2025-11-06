@@ -3,6 +3,8 @@ const sequelize = require("../../config/db");
 const { Message } = require("../model");
 const { QueryTypes } = require("sequelize");
 const { Op } = require("sequelize");
+const fs = require("fs");
+const path = require("path");
 
 class ChatService {
     // Lưu tin nhắn mới (mặc định chưa đọc)
@@ -119,6 +121,31 @@ class ChatService {
                 }
             }
         );
+    }
+
+    static async deleteMessage(messageId)
+    {
+        try {
+            const message = await Message.findByPk(messageId);
+            if (!message) return null;
+
+            if (message.image_url) 
+            {
+                // Xoá file ảnh khỏi server
+                const imagePath = path.join(__dirname, "../../public", message.image_url);
+                console.log("🗑️ Deleting image file:", imagePath);
+                if (fs.existsSync(imagePath)) {
+                    fs.unlinkSync(imagePath);
+                } else {
+                    console.warn("⚠️ File ảnh không tồn tại:", imagePath);
+                }
+            }
+
+            await message.destroy();
+            return true;
+        } catch (error) {
+            throw error;
+        }
     }
 }
 
