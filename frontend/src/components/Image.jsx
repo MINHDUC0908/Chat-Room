@@ -1,30 +1,55 @@
 import React, { useState } from "react";
+import { X, Download, Upload, MessageCircle, Bookmark, Share2 } from "lucide-react"; // Thêm icons cho nút top
 import src from "../api/src";
 
 function ImageModal({ isOpen, onClose, images = [], imageUrl }) {
     if (!isOpen) return null;
 
-    // File hiện tại đang xem (ảnh hoặc video)
     const [currentMedia, setCurrentMedia] = useState(
         imageUrl.startsWith("http") ? imageUrl : src + imageUrl
     );
 
-    // Hàm kiểm tra xem có phải video không
     const isVideo = (url) => /\.(mp4|webm|ogg|mov)$/i.test(url);
+
+    const handleDownload = () => {
+        // Logic tải xuống, ví dụ:
+        const link = document.createElement('a');
+        link.href = currentMedia;
+        link.download = 'image.jpg';
+        link.click();
+    };
+
+    const handleUpload = () => {
+        console.log('Upload functionality here');
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
             <div className="relative w-full max-w-3xl max-h-[90vh] flex flex-col items-center p-4">
-                {/* Nút đóng */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-2 right-2 text-white text-3xl font-bold hover:text-gray-400 transition"
-                >
-                    ✕
-                </button>
-
-                {/* Khu vực hiển thị chính */}
-                <div className="flex justify-center items-center w-full h-[70vh] rounded-lg overflow-hidden mb-4 bg-black">
+                <div className="absolute top-0 left-0 right-0 flex justify-end items-center p-3 gap-2 z-20">
+                    <button
+                        onClick={handleDownload}
+                        className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center"
+                        title="Tải xuống"
+                    >
+                        <Download className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={handleUpload}
+                        className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center"
+                        title="Tải lên"
+                    >
+                        <Upload className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center"
+                        title="Đóng"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="relative flex justify-center items-center w-full h-[70vh] rounded-lg overflow-hidden mb-4 bg-black pt-16"> {/* pt-16 để tránh overlap top bar */}
                     {isVideo(currentMedia) ? (
                         <video
                             src={currentMedia}

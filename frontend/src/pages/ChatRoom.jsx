@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import axios from "axios";
 import api from "../api/api";
@@ -10,7 +10,7 @@ import useUser from "../hooks/useUser";
 import useChat from "../hooks/useChat";
 import socket from "../utils/socket";
 import { ChatMessage } from "../components/ChatMessage";
-import AudioCall from "../components/AudioCall";
+import AudioCall from "../components/AudioCallPrivate";
 
 function ChatRoom({ setCurrentTitle }) {
     const { id: receiverId } = useParams();
@@ -32,7 +32,7 @@ function ChatRoom({ setCurrentTitle }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
-    const audioCallRef = useRef(null);
+    const { audioCallRef, videoCallRef } = useOutletContext(); // ✅ Lấy ref từ Layout
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
@@ -155,6 +155,8 @@ function ChatRoom({ setCurrentTitle }) {
         );
     };
 
+
+    // Chụp ảnh bằng camera
     const openCamera = async () => {
         try {
             setCameraActive(true);
@@ -357,6 +359,21 @@ function ChatRoom({ setCurrentTitle }) {
         });
     };
 
+    const handleVoiceCall = () => {
+        if (!receiverId) {
+            alert("Không tìm thấy người nhận!");
+            return;
+        }
+        audioCallRef.current?.startCall(receiverId);
+    };
+
+    const handleVideoCall = () => {
+        if (!receiverId) {
+            alert("Không tìm thấy người nhận!");
+            return;
+        }
+        videoCallRef.current?.startCall(receiverId);
+    };
     return (
         <div className="flex flex-col h-screen">
             <div className="flex items-center justify-between p-4 bg-white shadow-md rounded-t-lg border-b mb-1">
@@ -369,27 +386,18 @@ function ChatRoom({ setCurrentTitle }) {
                     <FiPhone
                         className="w-6 h-6 text-green-500 cursor-pointer hover:scale-110 transition-transform"
                         title="Gọi thoại"
-                        onClick={() => audioCallRef.current?.startCall()}
+                        onClick={handleVoiceCall}
                     />
                     <FiVideo
                         className="w-6 h-6 text-blue-500 cursor-pointer hover:scale-110 transition-transform"
                         title="Gọi video"
-                        onClick={() => console.log("Gọi video")}
+                        onClick={handleVideoCall}
                     />
                 </div>
             </div>
 
-            {/* AudioCall */}
-            <AudioCall 
-                ref={audioCallRef}
-                user={user} 
-                receiverId={receiverId} 
-                receiverInfo={receiverInfo} 
-            />
-
             <div className="flex-1 p-4 overflow-y-auto bg-white">
-                <ChatMessage chat={chat} user={user} handleDeleteMessage={handleDeleteMessage}/>
-                <div ref={messagesEndRef} />
+                <ChatMessage chat={chat} user={user} handleDeleteMessage={handleDeleteMessage} messagesEndRef={messagesEndRef}/>
             </div>
 
             {previewImage && (

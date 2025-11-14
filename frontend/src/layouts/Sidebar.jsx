@@ -8,8 +8,9 @@ import { formatTime } from "../utils/format";
 import Group from "../components/Group";
 import useUser from "../hooks/useUser";
 import ChatItem from "../components/ChatList";
+import { createPortal } from "react-dom";
 
-const socket = io("http://192.168.1.15:3000");
+const socket = io("http://192.168.1.14:3000");
 
 function SideBar() {
     const { user, logout } = useAuth();
@@ -367,77 +368,83 @@ function SideBar() {
     const currentConversationId = currentChatId ? parseInt(currentChatId) : null;
 
     return (
-        <div className="w-[350px] border-r border-gray-300 h-screen flex flex-col bg-white">
-            <div className="flex justify-between items-center p-4">
-                <span className="font-bold text-lg">{user?.name}</span>
-                <div className="flex items-center gap-2 text-gray-600 cursor-pointer">
-                    <FiEdit2
-                        onClick={() => setGroupOpen(true)}
-                        className="hover:scale-110 transition-transform"
-                    />
-                    <span>Tạo nhóm</span>
+         <>
+            <div className="w-[350px] border-r border-gray-300 h-screen flex flex-col bg-white"> 
+                <div className="flex justify-between items-center p-4"> 
+                    <span className="font-bold text-lg">{user?.name}</span> 
+                    <div className="flex items-center gap-2 text-gray-600 cursor-pointer"> 
+                        <FiEdit2 
+                            onClick={() => setGroupOpen(true)} 
+                            className="hover:scale-110 transition-transform" 
+                        /> 
+                        <span>Tạo nhóm</span> 
+                    </div> 
+                </div> 
+     
+                <div className="px-4 pb-2"> 
+                    <div className="flex items-center bg-gray-100 rounded-lg px-3"> 
+                        <FiSearch className="mr-2 text-gray-500" /> 
+                        <input 
+                            type="text" 
+                            placeholder="Tìm kiếm" 
+                            value={search} 
+                            onChange={(e) => setSearch(e.target.value)} 
+                            className="flex-1 bg-transparent border-none outline-none py-2 text-sm" 
+                        /> 
+                    </div> 
+                </div> 
+     
+                <div className="pt-2 border-t border-gray-300 flex-1 overflow-y-auto"> 
+                    <div className="font-bold mb-2 px-4">Tin nhắn</div> 
+                    {filteredConversations.map((c, index) => ( 
+                        <ChatItem 
+                            key={`${c.chatId}-${index}`} 
+                            conversation={c} 
+                            formatTime={formatTime} 
+                            isSelected={ 
+                                isGroupChat 
+                                    ? c.isGroup && c.chatId == currentConversationId 
+                                    : !c.isGroup && c.chatId == currentConversationId 
+                            } 
+                            onClick={() => { 
+                                if (c.isGroup) { 
+                                    navigate(`/group-room/${c.chatId}`); 
+                                } else { 
+                                    navigate(`/chat-room/${c.chatId}`); 
+                                } 
+                                handleMarkAsRead(c.chatId); 
+                            }} 
+                            currentUserId={user?.id} 
+                        /> 
+                    ))} 
+                </div> 
+     
+                <div className="border-t border-gray-300 bg-gray-50"> 
+                    <div className="px-3 pt-3 pb-3 flex gap-2"> 
+                        <button 
+                            onClick={() => {}} 
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700" 
+                        > 
+                            <FiSettings size={16} /> 
+                            Cài đặt 
+                        </button> 
+                        <button 
+                            onClick={logout} 
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors text-sm font-medium text-white" 
+                        > 
+                            <FiLogOut size={16} /> 
+                            Đăng xuất 
+                        </button> 
+                    </div> 
                 </div>
             </div>
 
-            <div className="px-4 pb-2">
-                <div className="flex items-center bg-gray-100 rounded-lg px-3">
-                    <FiSearch className="mr-2 text-gray-500" />
-                    <input
-                        type="text"
-                        placeholder="Tìm kiếm"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="flex-1 bg-transparent border-none outline-none py-2 text-sm"
-                    />
-                </div>
-            </div>
-
-            <div className="pt-2 border-t border-gray-300 flex-1 overflow-y-auto">
-                <div className="font-bold mb-2 px-4">Tin nhắn</div>
-                {filteredConversations.map((c, index) => (
-                    <ChatItem
-                        key={`${c.chatId}-${index}`}
-                        conversation={c}
-                        formatTime={formatTime}
-                        isSelected={
-                            isGroupChat
-                                ? c.isGroup && c.chatId == currentConversationId
-                                : !c.isGroup && c.chatId == currentConversationId
-                        }
-                        onClick={() => {
-                            if (c.isGroup) {
-                                navigate(`/group-room/${c.chatId}`);
-                            } else {
-                                navigate(`/chat-room/${c.chatId}`);
-                            }
-                            handleMarkAsRead(c.chatId);
-                        }}
-                        currentUserId={user?.id}
-                    />
-                ))}
-            </div>
-
-            <div className="border-t border-gray-300 bg-gray-50">
-                <div className="px-3 pt-3 pb-3 flex gap-2">
-                    <button
-                        onClick={() => {}}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
-                    >
-                        <FiSettings size={16} />
-                        Cài đặt
-                    </button>
-                    <button
-                        onClick={logout}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors text-sm font-medium text-white"
-                    >
-                        <FiLogOut size={16} />
-                        Đăng xuất
-                    </button>
-                </div>
-            </div>
-
-            {groupOpen && <Group setGroup={setGroupOpen} />}
-        </div>
+            {/* ✅ Render Group ra ngoài body bằng Portal */}
+            {groupOpen && createPortal(
+                <Group setGroup={setGroupOpen} />,
+                document.body
+            )}
+        </>
     );
 }
 

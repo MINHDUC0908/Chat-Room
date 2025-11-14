@@ -3,16 +3,15 @@ import { FiSend, FiImage, FiUsers, FiPhone, FiVideo } from "react-icons/fi";
 import { BsEmojiSmile } from "react-icons/bs";
 import Emoji from "../components/Emoji";
 import useGroup from "../hooks/useGroup";
-import { useParams } from "react-router-dom";
+import { useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { io } from "socket.io-client";
-import useUser from "../hooks/useUser";
 import src from "../api/src";
 import axios from "axios";
 import api from "../api/api";
-import ImageModal from "../components/Image";
+import ChatGroupMessage from "../components/ChatGroupMessage";
 
-const socket = io("http://192.168.1.15:3000");
+const socket = io("http://192.168.1.14:3000");
 
 function GroupRoom() {
     const { id } = useParams();
@@ -23,8 +22,9 @@ function GroupRoom() {
     const { group, fetchGroup } = useGroup();
     const { user } = useAuth();
     const [previewImage, setPreviewImage] = useState(null);
-    const [selectedImage, setSelectedImage] = useState(null);
     const [uploadFile, setUploadFile] = useState(null);
+
+    const { audioCallGroupRef } = useOutletContext();
     
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
@@ -48,7 +48,7 @@ function GroupRoom() {
         }
     }, [id, user?.id]);
 
-    // ✅ Lắng nghe tin nhắn nhóm - ĐÃ SỬA: Kiểm tra groupId
+    // ✅ Lắng nghe tin nhắn nhóm
     useEffect(() => {
         socket.on("group_message", (data) => {
             // ✅ QUAN TRỌNG: Chỉ thêm tin nhắn nếu thuộc nhóm hiện tại
@@ -64,7 +64,7 @@ function GroupRoom() {
                 sender_id: data.senderId,
                 content: data.content,
                 imageUrl: data.imageUrl || null,
-                createdAt: data.createdAt,
+                created_at: data.createdAt,
                 sender: data.senderInfo || null, // Lưu thông tin sender để hiển thị tên
             };
             
@@ -87,7 +87,8 @@ function GroupRoom() {
                     sender_id: data.senderId,
                     content: null,
                     image_url: data.imageUrl || data.fileUrl,
-                    createdAt: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    sender: { name: data.name },
                 },
             ]);
         });
@@ -135,6 +136,7 @@ function GroupRoom() {
                 if (res.data.success && res.data.message?.imageUrl) {
                     const imageUrl = res.data.message.imageUrl;
                     socket.emit("send_group_image", {
+                        name: user.name,
                         senderId: user.id,
                         groupId: parseInt(id),
                         fileUrl: imageUrl,  
@@ -150,12 +152,15 @@ function GroupRoom() {
             }
         }
     };
-    
-    // Lấy tất cả ảnh trong chat
-    const allImages = messages
-        .filter((msg) => msg.image_url)
-        .map((msg) => msg.image_url);
-        
+
+    const handleVoiceCall = () => {
+        if (!group) {
+            alert("Không tìm thấy người nhận!");
+            return;
+        }
+        audioCallGroupRef.current?.startGroupCall(parseInt(id), group.name);
+        console.log("Gọi thoại nhóm:", parseInt(id), group.name)
+    };
     return (
         <div className="flex flex-col h-screen bg-gray-100">
             <div className="flex items-center justify-between p-4 bg-white shadow-md border-b">
@@ -169,7 +174,7 @@ function GroupRoom() {
                     <FiPhone
                         className="w-6 h-6 text-green-500 cursor-pointer hover:scale-110 transition-transform"
                         title="Gọi thoại"
-                        onClick={() => console.log("Gọi thoại")}
+                        onClick={handleVoiceCall}
                     />
                     <FiVideo
                         className="w-6 h-6 text-blue-500 cursor-pointer hover:scale-110 transition-transform"
@@ -178,73 +183,8 @@ function GroupRoom() {
                     />
                 </div>
             </div>
-            <div className="flex-1 p-4 overflow-y-auto">
-                {messages.map((msg, i) => {
-                    const isCurrentUser = msg.sender_id === user?.id;
-                    const prevMsg = i > 0 ? messages[i - 1] : null;
-                    const nextMsg = i < messages.length - 1 ? messages[i + 1] : null;
-                    const showAvatar = !isCurrentUser && (!nextMsg || nextMsg.sender_id !== msg.sender_id);
-                    const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
-                    return (
-                        <div key={i} className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
-                            <div
-                                className={`flex flex-col mb-1 ${isCurrentUser ? 'items-end' : 'items-start'} ${
-                                    isFirstInGroup ? 'mt-2' : ''
-                                }`}
-                            >
-                                {isFirstInGroup && !isCurrentUser && (
-                                    <span className="text-sm text-gray-600 font-semibold mb-1 ml-10">
-                                        {msg.sender?.name ? msg.sender.name.split(" ").pop() : "Người dùng"}
-                                    </span>
-                                )}
-                                <div className="flex items-end">
-                                    {!isCurrentUser && (
-                                        <div className="w-8 h-8 mr-2">
-                                            {showAvatar && (
-                                                <img
-                                                    src={`https://i.pravatar.cc/50?u=${msg.sender_id}`}
-                                                    alt="avatar"
-                                                    className="w-7 h-7 rounded-full object-cover"
-                                                />
-                                            )}
-                                        </div>
-                                    )}
-                                    <div
-                                        className={`max-w-xs text-sm ${
-                                            isCurrentUser
-                                                ? msg.image_url
-                                                    ? 'bg-blue-500 text-white rounded-2xl'
-                                                    : 'bg-blue-500 text-white rounded-2xl px-3 py-2'
-                                                : msg.image_url
-                                                    ? 'bg-gray-200 text-black rounded-2xl'
-                                                    : 'bg-gray-200 text-black rounded-2xl px-3 py-2'
-                                        }`}
-                                    >
-                                        {msg.image_url ? (
-                                            <img
-                                                src={src + msg.image_url}
-                                                alt="message"
-                                                className="max-w-[200px] max-h-[200px] rounded-lg cursor-pointer"
-                                                onClick={() => setSelectedImage(src + msg.image_url)}
-                                                onLoad={() => {
-                                                    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-                                                }}
-                                                onError={(e) => {
-                                                    console.error("❌ Image load failed:", msg.image_url);
-                                                    e.target.style.display = "none";
-                                                }}
-                                            />
-                                        ) : (
-                                            msg.content
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-                <div ref={messagesEndRef} />
-            </div>
+            
+            <ChatGroupMessage messages={messages} messagesEndRef={messagesEndRef} user={user} />
             {previewImage && (
                 <div className="flex justify-end mb-2">
                     <div className="rounded-2xl max-w-xs">
@@ -302,12 +242,6 @@ function GroupRoom() {
                 </button>
             </form>
             {emoji && <Emoji onSelect={(emo) => setMessage((prev) => prev + emo)} />}
-            <ImageModal
-                isOpen={!!selectedImage}
-                onClose={() => setSelectedImage(null)}
-                imageUrl={selectedImage}
-                images={allImages}
-            />
         </div>
     );
 }

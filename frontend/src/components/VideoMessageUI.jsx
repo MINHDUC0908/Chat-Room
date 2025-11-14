@@ -7,9 +7,7 @@ import {
     Minimize2,
     Loader2,
     MoreVertical,
-    Download,
     Trash2,
-    Link2
 } from 'lucide-react';
 
 const VideoMessageUI = ({ msg, onDelete }) => {

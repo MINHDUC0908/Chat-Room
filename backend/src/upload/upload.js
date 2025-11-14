@@ -30,6 +30,11 @@ const createUploader = (folderPath, type = 'image') => {
             maxSize: 100 * 1024 * 1024, // 100MB
             errorMessage: "Chỉ chấp nhận file video (mp4, mov, avi, mkv, wmv, flv, webm)!"
         },
+        document: {
+            allowedTypes: /pdf|doc|docx/,
+            maxSize: 20 * 1024 * 1024, // 20MB
+            errorMessage: "Chỉ chấp nhận file tài liệu (pdf, doc, docx)!"
+        },
         both: {
             allowedTypes: /jpeg|jpg|png|gif|webp|mp4|mov|avi|mkv|wmv|flv|webm/,
             maxSize: 100 * 1024 * 1024, // 100MB

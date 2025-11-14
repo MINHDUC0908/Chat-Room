@@ -1,6 +1,6 @@
 // services/ChatService.js
 const sequelize = require("../../config/db");
-const { Message } = require("../model");
+const { Message, Call } = require("../model");
 const { QueryTypes } = require("sequelize");
 const { Op } = require("sequelize");
 const fs = require("fs");
@@ -18,18 +18,57 @@ class ChatService {
     }
 
     // Lấy tất cả tin nhắn giữa 2 người
-    static async getMessages(userA, userB) {
-        return await Message.findAll({
+    static async getMessages(userA, userB, offset = 0, limit = 20) {
+        const messages = await Message.findAll({
             where: {
-                // lấy cả 2 chiều: A -> B và B -> A
-                [Op.or]: [  
-                    { sender_id: userA, receiver_id: userB },
-                    { sender_id: userB, receiver_id: userA }
+                [Op.or]: [
+                    {
+                        [Op.and]: [
+                            { sender_id: userA },
+                            { receiver_id: userB }
+                        ]
+                    },
+                    {
+                        [Op.and]: [
+                            { sender_id: userB },
+                            { receiver_id: userA }
+                        ]
+                    }
                 ]
             },
-            order: [["created_at", "ASC"]]
+            include: [
+                {
+                    model: Call,
+                    as: "call",       
+                    required: false
+                }
+            ],
+            order: [["created_at", "DESC"]],
         });
+
+        return messages.reverse();
     }
+
+    // static async getMessages(userA, userB) {
+    //     const messages = await sequelize.query
+    //     (
+    //         `
+    //             SELECT * FROM (
+    //                 SELECT * FROM messages
+    //                 WHERE (sender_id = :userA AND receiver_id = :userB)
+    //                 OR (sender_id = :userB AND receiver_id = :userA)
+    //                 ORDER BY created_at DESC
+    //                 LIMIT 20
+    //             ) AS subquery
+    //             ORDER BY created_at ASC
+    //         `, 
+    //         {
+    //             replacements: { userA, userB },
+    //             type: sequelize.QueryTypes.SELECT
+    //         }
+    //     )
+    //     return messages;
+    // }
 
     // Lấy danh sách cuộc hội thoại cho user
     static async getConversations(userId) {
