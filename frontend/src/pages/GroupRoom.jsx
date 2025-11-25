@@ -6,12 +6,11 @@ import useGroup from "../hooks/useGroup";
 import { useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { io } from "socket.io-client";
-import src from "../api/src";
 import axios from "axios";
 import api from "../api/api";
 import ChatGroupMessage from "../components/ChatGroupMessage";
 
-const socket = io("http://192.168.1.14:3000");
+const socket = io("http://172.30.251.243");
 
 function GroupRoom() {
     const { id } = useParams();
@@ -158,7 +157,7 @@ function GroupRoom() {
             alert("Không tìm thấy người nhận!");
             return;
         }
-        audioCallGroupRef.current?.startGroupCall(parseInt(id), group.name);
+        audioCallGroupRef.current?.startGroupCall();
         console.log("Gọi thoại nhóm:", parseInt(id), group.name)
     };
     return (

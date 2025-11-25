@@ -1,10 +1,7 @@
 // utils/socket.js
 const { Server } = require("socket.io");
-const ChatService = require("../app/service/ChatService");
-const GroupService = require("../app/service/GroupService");
-const { User, Message } = require("../app/model");
+const { User } = require("../app/model");
 const CallService = require("../app/service/CallService");
-
 const initChatHandlers = require("./socketHandlers/chatHandler");
 const initGroupHandlers = require("./socketHandlers/groupHandler");
 const initGroupCallHandlers = require("./socketHandlers/groupCallHandler");
