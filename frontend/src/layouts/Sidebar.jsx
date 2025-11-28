@@ -10,7 +10,7 @@ import useUser from "../hooks/useUser";
 import ChatItem from "../components/ChatList";
 import { createPortal } from "react-dom";
 
-const socket = io("http://172.30.251.243");
+const socket = io("http://192.168.1.77:3000");
 
 function SideBar() {
     const { user, logout } = useAuth();

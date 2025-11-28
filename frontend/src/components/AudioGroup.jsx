@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "re
 import { FiPhone, FiPhoneOff, FiMic, FiMicOff, FiUsers, FiX } from "react-icons/fi";
 import { io } from "socket.io-client";
 
-const socket = io("http://192.168.1.14:3000/");
+const socket = io("http://192.168.1.77:3000/");
 
 const AudioGroup = forwardRef(({ groupId, groupName, user, onClose }, ref) => {
     const [showCallModal, setShowCallModal] = useState(false);

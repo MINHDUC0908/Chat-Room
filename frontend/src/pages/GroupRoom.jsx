@@ -10,7 +10,7 @@ import axios from "axios";
 import api from "../api/api";
 import ChatGroupMessage from "../components/ChatGroupMessage";
 
-const socket = io("http://172.30.251.243");
+const socket = io("http://192.168.1.77:3000");
 
 function GroupRoom() {
     const { id } = useParams();
