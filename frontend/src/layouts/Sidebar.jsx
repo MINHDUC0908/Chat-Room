@@ -9,7 +9,7 @@ import ChatItem from "../components/ChatList";
 import { createPortal } from "react-dom";
 import Group from "../components/group/Group";
 
-const socket = io("http://192.168.1.77:3000");
+const socket = io("http://172.30.251.243:3000");
 
 function SideBar() {
     const { user, logout } = useAuth();

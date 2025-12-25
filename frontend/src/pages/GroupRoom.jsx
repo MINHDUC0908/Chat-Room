@@ -9,8 +9,7 @@ import { io } from "socket.io-client";
 import axios from "axios";
 import api from "../api/api";
 import ChatGroupMessage from "../components/group/ChatGroupMessage1";
-
-const socket = io("http://192.168.1.77:3000");
+import socket from "../utils/socket";
 
 function GroupRoom() {
     const { id } = useParams();

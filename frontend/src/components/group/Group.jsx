@@ -5,7 +5,7 @@ import { io } from "socket.io-client";
 import useUser from "../../hooks/useUser";
 import { useAuth } from "../../contexts/AuthContext";
 
-const socket = io("http://192.168.1.77:3000/");
+const socket = io("http://172.30.251.243:3000/");
 
 function Group({ setGroup }) {
     const { usersGr } = useUser();
