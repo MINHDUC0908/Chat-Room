@@ -8,7 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { io } from "socket.io-client";
 import axios from "axios";
 import api from "../api/api";
-import ChatGroupMessage from "../components/ChatGroupMessage";
+import ChatGroupMessage from "../components/group/ChatGroupMessage1";
 
 const socket = io("http://192.168.1.77:3000");
 
@@ -28,57 +28,32 @@ function GroupRoom() {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     }, [messages])
-    
-    useEffect(() => {
-        if (user?.id) {
-            socket.emit("join", user.id);
-        }
-    }, [user?.id]);
 
     useEffect(() => {
-        fetchMesGr(id);
+        if (id) {
+            socket.emit("join_group", { groupId: id });
+            fetchMesGr(id);
+            fetchGroup(id);
+        }
     }, [id]);
 
     useEffect(() => {
-        if (id && user?.id) {
-            fetchGroup(id);
-            // ✅ Join room group
-            socket.emit("join_group", { groupId: id });
-        }
-    }, [id, user?.id]);
-
-    // ✅ Lắng nghe tin nhắn nhóm
-    useEffect(() => {
         socket.on("group_message", (data) => {
-            // ✅ QUAN TRỌNG: Chỉ thêm tin nhắn nếu thuộc nhóm hiện tại
-            if (parseInt(data.groupId) !== parseInt(id)) {
-                console.log(`⏭️ Skipping message from group ${data.groupId}, current group is ${id}`);
-                return;
-            }
-
-            console.log(`✅ Adding message to group ${id}:`, data);
-            
+            if (parseInt(data.groupId) !== parseInt(id)) return;
             const newMessage = {
                 id: data.id || Date.now(),
                 sender_id: data.senderId,
                 content: data.content,
                 imageUrl: data.imageUrl || null,
                 created_at: data.createdAt,
-                sender: data.senderInfo || null, // Lưu thông tin sender để hiển thị tên
+                sender: data.senderInfo || null,
             };
             
             setMessages(prev => [...prev, newMessage]);
         });
 
         socket.on("send_group_image", (data) => {
-            // ✅ QUAN TRỌNG: Kiểm tra groupId cho ảnh
-            if (parseInt(data.groupId) !== parseInt(id)) {
-                console.log(`⏭️ Skipping image from group ${data.groupId}, current group is ${id}`);
-                return;
-            }
-
-            console.log(`✅ Adding image to group ${id}:`, data);
-
+            if (parseInt(data.groupId) !== parseInt(id)) return;
             setMessages((prev) => [
                 ...prev,
                 {
@@ -96,7 +71,7 @@ function GroupRoom() {
             socket.off("group_message");
             socket.off("send_group_image");
         };
-    }, [setMessages, id]); // ✅ Thêm 'id' vào dependencies
+    }, [id]);
 
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
@@ -107,7 +82,6 @@ function GroupRoom() {
         setUploadFile(file);
     };
 
-    // ✅ Gửi tin nhắn
     const handleSend = async (e) => {
         e.preventDefault();
         if (message.trim())
@@ -124,7 +98,6 @@ function GroupRoom() {
             const formData = new FormData();
             formData.append("image", uploadFile);
             formData.append("groupId", id);
-            
             try {
                 const res = await axios.post(api + "image/upload-group-image", formData, {
                     headers: {
@@ -154,12 +127,12 @@ function GroupRoom() {
 
     const handleVoiceCall = () => {
         if (!group) {
-            alert("Không tìm thấy người nhận!");
+            alert("Chưa load thông tin nhóm");
             return;
         }
-        audioCallGroupRef.current?.startGroupCall();
-        console.log("Gọi thoại nhóm:", parseInt(id), group.name)
+        audioCallGroupRef.current?.startGroupCall(group);
     };
+
     return (
         <div className="flex flex-col h-screen bg-gray-100">
             <div className="flex items-center justify-between p-4 bg-white shadow-md border-b">

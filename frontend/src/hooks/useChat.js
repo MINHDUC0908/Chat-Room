@@ -16,7 +16,6 @@ function useChat()
                 }
             );
             setChat(res.data);
-            console.log("✅ Tin nhắn cũ:", res.data);
         } catch (err) {
             console.error("❌ Lỗi load tin nhắn:", err);
         }

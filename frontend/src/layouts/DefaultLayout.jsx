@@ -1,11 +1,10 @@
-// DefaultLayout.jsx
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import SideBar from "./Sidebar";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import socket from "../utils/socket";
-import AudioCall from "../components/AudioCallPrivate";
-import VideoCall from "../components/VideoCallPrivate";
+import AudioCall from "../components/directChat/AudioCallPrivate";
+import VideoCall from "../components/directChat/VideoCallPrivate";
 import AudioGroup from "../components/AudioGroup";
 
 function DefaultLayout() {
@@ -20,23 +19,19 @@ function DefaultLayout() {
     const audioCallGroupRef = useRef();
     const navigate = useNavigate();
 
-    // Toggle sidebar for mobile
     const toggleMobileSidebar = () => {
         setIsMobileSidebarOpen(!isMobileSidebarOpen);
     };
 
-    // Close sidebar on route change or outside click (basic)
     useEffect(() => {
         setIsMobileSidebarOpen(false);
     }, [location]);
 
-    // ✅ Khi nhận cuộc gọi đến, có thể tự động chuyển đến trang chat
     useEffect(() => {
         if (!user?.id) return;
 
         const handleIncomingCall = ({ from }) => {
             console.log("📞 Incoming call from:", from);
-            // navigate(`/chat-room/${from}`);
         };
         socket.on("incoming-call", handleIncomingCall);
 
@@ -46,10 +41,9 @@ function DefaultLayout() {
     }, [user, navigate]);
 
     useEffect(() => {
-        // ✅ Lắng nghe sự kiện gửi ảnh (xác nhận gửi thành công)
         socket.on("send_image_message", (msg, senderInfo) => {
             const newNotification = {
-                id: Date.now() + Math.random(), // ID duy nhất
+                id: Date.now() + Math.random(),
                 message: senderInfo?.name + ": Đã gửi một ảnh",
                 icon: "🖼️",
                 type: "image",
@@ -74,10 +68,8 @@ function DefaultLayout() {
                 setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
             }, 4000);
         });
-        
-        // ✅ Lắng nghe tin nhắn riêng tư
+
         socket.on("private_message", (msg, senderInfo) => {
-            // Kiểm tra xem có phải tin nhắn của mình không
             const isMyMessage = msg.sender_id === user?.id;
             const match = location.pathname.match(/\/chat-room\/(\d+)/);
             const currentChatUserId = match ? parseInt(match[1]) : null;
@@ -86,16 +78,14 @@ function DefaultLayout() {
                 const notificationMessage = `${senderName}: ${msg.content}`;
                 
                 const newNotification = {
-                    id: Date.now() + Math.random(), // ID duy nhất
+                    id: Date.now() + Math.random(), 
                     message: notificationMessage,
                     icon: "💬",
                     type: "private",
-                    visible: true // Để animation
+                    visible: true 
                 };
                 
                 setNotifications(prev => [...prev, newNotification]);
-                
-                // Tự động ẩn sau 3.5 giây
                 setTimeout(() => {
                     setNotifications(prev => 
                         prev.map(notif => 
@@ -105,8 +95,6 @@ function DefaultLayout() {
                         )
                     );
                 }, 3500);
-                
-                // Xóa sau animation
                 setTimeout(() => {
                     setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
                 }, 4000);
@@ -118,7 +106,6 @@ function DefaultLayout() {
             socket.off("send_image_message");
         };
     }, [location.pathname, user?.id]);
-    // Hàm đóng thông báo thủ công
     const closeNotification = (id) => {
         setNotifications(prev => 
             prev.map(notif => 
@@ -135,14 +122,12 @@ function DefaultLayout() {
                 <AudioCall 
                     ref={audioCallRef}
                     user={user} 
-                    receiverId={null}  // Không cần receiverId ban đầu
                 />
             )}
             {user && (
                 <VideoCall 
                     ref={videoCallRef}
                     user={user} 
-                    receiverId={null}  // Không cần receiverId ban đầu
                 />
             )}
             {

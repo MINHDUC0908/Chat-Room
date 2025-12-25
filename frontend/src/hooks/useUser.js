@@ -14,7 +14,6 @@ function useUser()
             });
             if (res.data) {
                 setUsersGr(res.data)
-                console.log("✅ Fetch users thành công:", res.data);
             }
         } catch (error) {
             console.error("❌ Lỗi khi fetch users:", error);
@@ -27,7 +26,6 @@ function useUser()
                 headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
             });
             if (res.data) {
-                // map thêm avatar vào cho đồng nhất
                 const mapped = res.data.map(c => ({
                     id: c.id,
                     name: c.name,
@@ -44,7 +42,6 @@ function useUser()
                     lastActive: c.last_active ? new Date(c.last_active) : null
                 }));
                 setConversations(mapped);
-                console.log("✅ Fetch conversations thành công:", mapped);
             }
         } catch (error) {
             console.error("❌ Lỗi khi fetch conversations:", error);

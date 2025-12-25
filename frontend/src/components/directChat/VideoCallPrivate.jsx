@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
-import socket from "../utils/socket";
 import { FiVideo, FiPhoneOff, FiX, FiMic, FiMicOff, FiVideoOff, FiRotateCw } from "react-icons/fi";
-import useUser from "../hooks/useUser";
+import useUser from "../../hooks/useUser";
+import socket from "../../utils/socket";
 
 const VideoCall = forwardRef(({ user }, ref) => {
     const [showCallModal, setShowCallModal] = useState(false);
@@ -15,7 +15,7 @@ const VideoCall = forwardRef(({ user }, ref) => {
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [currentFacingMode, setCurrentFacingMode] = useState('user');
     
-    // ✅ Sử dụng ref thay vì state cho peer connection
+    // Sử dụng ref thay vì state cho peer connection
     const pcRef = useRef(null);
     const isEndingCallRef = useRef(false);
     const callTimerRef = useRef(null);
@@ -35,14 +35,14 @@ const VideoCall = forwardRef(({ user }, ref) => {
         };
     }, []);
 
-    // 🎥 Setup WebRTC listeners - VIDEO EVENTS
+    // Setup WebRTC listeners - VIDEO EVENTS
     useEffect(() => {
         if (!user?.id) return;
 
         const userId = String(user.id);
         socket.emit("join", userId);
 
-        // ✅ VIDEO: Nhận cuộc gọi đến
+        // VIDEO: Nhận cuộc gọi đến
         socket.on("incoming-video-call", ({ from, offer }) => {
             console.log("📹 Có cuộc gọi VIDEO đến từ userId:", from);
             setIncomingCall({ from, offer });
@@ -54,7 +54,7 @@ const VideoCall = forwardRef(({ user }, ref) => {
             fetchReceiver(from);
         });
 
-        // ✅ VIDEO: Người nhận đã chấp nhận
+        // VIDEO: Người nhận đã chấp nhận
         socket.on("video-call-answered", async ({ from, answer }) => {
             console.log("✅ User", from, "đã chấp nhận cuộc gọi video");
             setCallStatus("Đang kết nối...");

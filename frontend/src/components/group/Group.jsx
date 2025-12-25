@@ -1,17 +1,19 @@
 import { FiX, FiSearch, FiCamera } from "react-icons/fi";
-import useUser from "../hooks/useUser";
 import { useState } from "react";
 import { io } from "socket.io-client";
-import { useAuth } from "../contexts/AuthContext";
+
+import useUser from "../../hooks/useUser";
+import { useAuth } from "../../contexts/AuthContext";
 
 const socket = io("http://192.168.1.77:3000/");
 
 function Group({ setGroup }) {
     const { usersGr } = useUser();
+    const { user } = useAuth();
+
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [groupName, setGroupName] = useState("");
     const [search, setSearch] = useState("");
-    const { user } = useAuth();
 
     const handleToggleUser = (id) => {
         setSelectedUsers((prev) =>
@@ -20,30 +22,29 @@ function Group({ setGroup }) {
                 : [...prev, id]
         );
     };
-
     const handleCreateGroup = () => {
-        if (!groupName.trim()) return alert("Vui lòng nhập tên nhóm");
-        if (selectedUsers.length === 0) return alert("Chọn ít nhất 1 thành viên");
-
+        if (!groupName.trim()) {
+            ("Vui lòng nhập tên nhóm");
+            return;
+        }
+        if (selectedUsers.length === 0) {
+            alert("Chọn ít nhất 1 thành viên");
+            return;
+        }
         socket.emit("create_group", {
             name: groupName,
             members: selectedUsers,
             creatorId: user?.id,
         });
-
         setGroup(false);
     };
 
     const filteredUsers = usersGr.filter((u) =>
         u.name.toLowerCase().includes(search.toLowerCase())
     );
-
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            {/* Khung chính */}
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col animate-fadeIn">
-                
-                {/* Nút đóng */}
                 <button
                     onClick={() => setGroup(false)}
                     className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 transition"
@@ -51,20 +52,17 @@ function Group({ setGroup }) {
                     <FiX size={24} />
                 </button>
 
-                {/* Header */}
                 <div className="px-6 py-4 border-b font-semibold text-lg text-gray-800">
                     Tạo nhóm mới
                 </div>
 
-                {/* Nội dung chính */}
                 <div className="flex flex-1 overflow-hidden divide-x">
-                    {/* Cột trái: chọn thành viên */}
                     <div className="w-1/2 flex flex-col">
-                        {/* Tên nhóm + ảnh */}
                         <div className="flex items-center gap-3 px-4 py-3 border-b">
                             <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-300">
                                 <FiCamera className="text-gray-600" />
                             </div>
+
                             <input
                                 type="text"
                                 placeholder="Nhập tên nhóm..."
@@ -74,7 +72,6 @@ function Group({ setGroup }) {
                             />
                         </div>
 
-                        {/* Ô tìm kiếm */}
                         <div className="px-4 py-2">
                             <div className="flex items-center bg-gray-100 rounded-lg px-2 py-1">
                                 <FiSearch className="text-gray-500 mr-2" />
@@ -88,7 +85,6 @@ function Group({ setGroup }) {
                             </div>
                         </div>
 
-                        {/* Danh sách người dùng */}
                         <div className="flex-1 overflow-y-auto px-4 pb-4">
                             {filteredUsers.length === 0 ? (
                                 <div className="text-sm text-gray-500 py-4 text-center">
@@ -106,19 +102,21 @@ function Group({ setGroup }) {
                                             onChange={() => handleToggleUser(u.id)}
                                             className="w-4 h-4 accent-blue-500"
                                         />
+
                                         <img
                                             src={`https://i.pravatar.cc/50?u=${u.id}`}
                                             alt={u.name}
                                             className="w-9 h-9 rounded-full object-cover"
                                         />
-                                        <span className="text-sm text-gray-800">{u.name}</span>
+
+                                        <span className="text-sm text-gray-800">
+                                            {u.name}
+                                        </span>
                                     </label>
                                 ))
                             )}
                         </div>
                     </div>
-
-                    {/* Cột phải: danh sách đã chọn */}
                     <div className="w-1/2 flex flex-col">
                         <div className="p-4 border-b text-sm font-semibold text-gray-700">
                             Thành viên đã chọn ({selectedUsers.length}/100)
@@ -130,8 +128,12 @@ function Group({ setGroup }) {
                                 </div>
                             ) : (
                                 selectedUsers.map((id) => {
-                                    const user = usersGr.find((u) => u.id === id);
-                                    if (!user) return null;
+                                    const userItem = usersGr.find(
+                                        (u) => u.id === id
+                                    );
+
+                                    if (!userItem) return null;
+
                                     return (
                                         <div
                                             key={id}
@@ -139,16 +141,21 @@ function Group({ setGroup }) {
                                         >
                                             <div className="flex items-center gap-2">
                                                 <img
-                                                    src={`https://i.pravatar.cc/50?u=${user.id}`}
-                                                    alt={user.name}
+                                                    src={`https://i.pravatar.cc/50?u=${userItem.id}`}
+                                                    alt={userItem.name}
                                                     className="w-8 h-8 rounded-full object-cover"
                                                 />
-                                                <span className="text-sm">{user.name}</span>
+                                                <span className="text-sm">
+                                                    {userItem.name}
+                                                </span>
                                             </div>
+
                                             <button
                                                 onClick={() =>
                                                     setSelectedUsers((prev) =>
-                                                        prev.filter((uid) => uid !== id)
+                                                        prev.filter(
+                                                            (uid) => uid !== id
+                                                        )
                                                     )
                                                 }
                                                 className="text-gray-400 hover:text-red-500 transition"
@@ -162,8 +169,6 @@ function Group({ setGroup }) {
                         </div>
                     </div>
                 </div>
-
-                {/* Footer */}
                 <div className="flex justify-end gap-3 px-6 py-3 border-t bg-gray-50">
                     <button
                         onClick={() => setGroup(false)}
@@ -171,6 +176,7 @@ function Group({ setGroup }) {
                     >
                         Hủy
                     </button>
+
                     <button
                         onClick={handleCreateGroup}
                         className="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition"

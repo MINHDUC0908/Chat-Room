@@ -3,14 +3,13 @@ import { useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import axios from "axios";
 import api from "../api/api";
-import { FiCamera, FiImage, FiPhone, FiSend, FiVideo, FiPhoneOff, FiX } from "react-icons/fi";
+import { FiCamera, FiImage, FiPhone, FiSend, FiVideo } from "react-icons/fi";
 import { BsEmojiSmile } from "react-icons/bs";
 import Emoji from "../components/Emoji";
 import useUser from "../hooks/useUser";
 import useChat from "../hooks/useChat";
 import socket from "../utils/socket";
-import { ChatMessage } from "../components/ChatMessage";
-import AudioCall from "../components/AudioCallPrivate";
+import { ChatMessage } from "../components/directChat/ChatMessage";
 
 function ChatRoom({ setCurrentTitle }) {
     const { id: receiverId } = useParams();
@@ -32,7 +31,7 @@ function ChatRoom({ setCurrentTitle }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
-    const { audioCallRef, videoCallRef } = useOutletContext(); // ✅ Lấy ref từ Layout
+    const { audioCallRef, videoCallRef } = useOutletContext();
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
@@ -43,18 +42,12 @@ function ChatRoom({ setCurrentTitle }) {
     }, [receiverId]);
 
     useEffect(() => {
-        setCurrentTitle(`Hộp thư - Direct`);
-    }, [receiverId, setCurrentTitle]);
-
-    useEffect(() => {
         if (user) fetchMessages(receiverId);
     }, [receiverId, user]);
 
     useEffect(() => {
         if (!user) return;
-
         socket.emit("join", user.id);
-
         socket.on("private_message", (msg) => {
             if (
                 (msg.sender_id === user.id && msg.receiver_id === parseInt(receiverId)) ||
@@ -100,7 +93,6 @@ function ChatRoom({ setCurrentTitle }) {
         });
 
         socket.on("messages_read", ({ readerId, senderId }) => {
-            console.log("✅ Received messages_read:", { readerId, senderId });
             setChat((prevChat) =>
                 prevChat.map((msg) =>
                     msg.receiver_id === readerId && msg.sender_id === senderId
@@ -124,7 +116,6 @@ function ChatRoom({ setCurrentTitle }) {
         );
 
         socket.on("delete_message", ({ messageId }) => {
-            console.log("🗑️ Received delete_message for ID:", messageId);
             setChat((prev) => (
                 prev ? prev.filter((msg) => msg.id !== parseInt(messageId)) : []
             ));

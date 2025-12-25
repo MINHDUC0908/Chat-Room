@@ -31,11 +31,6 @@ function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId
                             <h3 className="font-semibold text-sm truncate">
                                 {conversation.displayName}
                             </h3>
-                            {/* {!conversation.isGroup && !conversation.isOnline && conversation.lastActive && (
-                                <span className="text-xs text-gray-500 mt-0.5">
-                                    Hoạt động {formatLastActive(conversation.lastActive)}
-                                </span>
-                            )} */}
                         </div>
                         {conversation.lastTime && (
                             <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
@@ -43,7 +38,6 @@ function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId
                             </span>
                         )}
                     </div>
-                    {/* Tin nhắn gần nhất */}
                     <div className="flex justify-between items-center mt-1">
                         <p
                             className={`text-xs ${
@@ -53,7 +47,6 @@ function ChatItem({ conversation, formatTime, isSelected, onClick, currentUserId
                             }`}
                         >
                             {conversation.displayMessage === "Chưa có tin nhắn" ? (
-                                // 👉 Nếu chưa có tin nhắn, chỉ hiển thị "Chưa có tin nhắn"
                                 <>Chưa có tin nhắn</>
                             ) : conversation.isGroup ? (
                                 conversation.lastSenderId === currentUserId ? (

@@ -1,14 +1,13 @@
-// SideBar.jsx
 import { useEffect, useState } from "react";
 import { FiEdit2, FiLogOut, FiSearch, FiSettings } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import { formatTime } from "../utils/format";
-import Group from "../components/Group";
 import useUser from "../hooks/useUser";
 import ChatItem from "../components/ChatList";
 import { createPortal } from "react-dom";
+import Group from "../components/group/Group";
 
 const socket = io("http://192.168.1.77:3000");
 
@@ -121,10 +120,8 @@ function SideBar() {
 
         // Cập nhật handler cho group_message
         socket.on("group_message", (data) => {
-            console.log("🔵 Received group_message:", data);
             setConversations((prev) => {
                 const existingIndex = prev.findIndex((c) => {
-                    // Kiểm tra isGroup === 1 hoặc isGroup === true
                     const isGroupConv = c.isGroup === 1 || c.isGroup === true;
                     if (!isGroupConv) return false;
                     // So sánh với groupId từ data
@@ -136,8 +133,6 @@ function SideBar() {
                     const exists = prev[existingIndex];
                     const updated = [...prev];
                     updated.splice(existingIndex, 1);
-
-                    // Tạo conversation mới với thông tin cập nhật
                     const updatedConv = {
                         ...exists,
                         lastMessage: data.content,
@@ -147,8 +142,6 @@ function SideBar() {
 
                     // Đưa conversation lên đầu danh sách
                     return [updatedConv, ...updated];
-                } else {
-                    console.warn("⚠️ Group not found in conversations:", data.groupId);
                 }
                 return prev;
             });
@@ -170,7 +163,6 @@ function SideBar() {
                     const updated = [...prev];
                     updated.splice(existingIndex, 1);
 
-                    // Tạo conversation mới với thông tin cập nhật
                     const updatedConv = {
                         ...exists,
                         lastMessage: "📷 Đã gửi 1 ảnh",
@@ -180,8 +172,6 @@ function SideBar() {
 
                     // Đưa conversation lên đầu danh sách
                     return [updatedConv, ...updated];
-                } else {
-                    console.warn("⚠️ Group not found in conversations:", msg.groupId);
                 }
                 return prev;
             });
@@ -190,7 +180,6 @@ function SideBar() {
 
         socket.on("send_video_message", (msg, senderInfo) => 
         {
-            console.log("🔵 Received send_video_message:", msg, senderInfo);
             const otherUserId = parseInt(
                 msg.senderId === user?.id ? msg.receiverId : msg.senderId
             );
@@ -198,7 +187,6 @@ function SideBar() {
 
             setConversations((prev) => {
                 const existingIndex = prev.findIndex((c) => {
-                    // Chỉ tìm trong chat 1-1, không phải nhóm
                     if (c.isGroup === 1 || c.isGroup === true) return false;
                     
                     const convId = parseInt(c.id);
@@ -249,7 +237,6 @@ function SideBar() {
 
             setConversations((prev) => {
                 const existingIndex = prev.findIndex((c) => {
-                    // Chỉ tìm trong chat 1-1, không phải nhóm
                     if (c.isGroup === 1 || c.isGroup === true) return false;
                     
                     const convId = parseInt(c.id);
@@ -294,8 +281,6 @@ function SideBar() {
         });
 
         socket.on("group_created", (newGroup) => {
-            console.log("🎉 Group created event received:", newGroup);
-            
             const normalizedGroup = {
                 ...newGroup,
                 chatId: newGroup.id,
@@ -309,10 +294,8 @@ function SideBar() {
             };
             
             setConversations((prev) => [normalizedGroup, ...prev]);
-            
-            // Tự động join vào nhóm vừa tạo
+ 
             socket.emit("join_group", { groupId: newGroup.id });
-            console.log(`🔗 Auto-joined newly created group: ${newGroup.id}`);
         });
 
         return () => {
@@ -438,8 +421,6 @@ function SideBar() {
                     </div> 
                 </div>
             </div>
-
-            {/* ✅ Render Group ra ngoài body bằng Portal */}
             {groupOpen && createPortal(
                 <Group setGroup={setGroupOpen} />,
                 document.body

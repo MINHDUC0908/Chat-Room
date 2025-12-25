@@ -1,8 +1,8 @@
 import { Copy, MoreVertical, Share2, Trash2, ChevronDown } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
-import src from "../api/src";
-import VideoMessageUI from "./VideoMessageUI";
-import ImageModal from "./Image";
+import src from "../../api/src";
+import VideoMessageUI from "../VideoMessageUI";
+import ImageModal from "../Image";
 
 export const ChatMessage = ({ chat, user, handleDeleteMessage, messagesEndRef }) => {
     const [showMenu, setShowMenu] = useState(null); // ID của tin nhắn có menu mở

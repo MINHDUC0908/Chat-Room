@@ -1,11 +1,10 @@
 import { useState } from "react";
-import ImageModal from "./Image";
-import src from "../api/src";
+import ImageModal from "../Image";
+import src from "../../api/src";
 
 
 function ChatGroupMessage( { messages, messagesEndRef, user})
 {
-    console.log("📨 Rendering ChatGroupMessage with messages:", messages);
     const [selectedImage, setSelectedImage] = useState(null); 
     const getMessageTimestamp = (msg) => msg.created_at;
 

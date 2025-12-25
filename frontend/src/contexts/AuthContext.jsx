@@ -17,7 +17,6 @@ export function AuthProvider({ children }) {
             })
             if (res.data && res.data.user) {
                 setUser(res.data.user);
-                console.log("✅ Fetch profile thành công:", res.data.user);
                 return res.data;
             }
         } catch (error) {
